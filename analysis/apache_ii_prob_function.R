@@ -135,8 +135,7 @@ get_apache_ii_coefficents <- function(data, output_path){
     # Getting the coefficients based on the diag string.
     left_join(ap2_coefs, by = c("primary_diag_ap2" = "name"),
               na_matches = "never") %>%
-    rename(ap2_diag_coef = coefficient) %>%
-    select(person_id, visit_occurrence_id, visit_detail_id, ap2_diag_coef)
+    select(person_id, visit_occurrence_id, visit_detail_id, ap2_diag_coef = coefficient)
 
   data
 }

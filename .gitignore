@@ -2,3 +2,4 @@ secrets.R
 data/
 .Rproj*
 .Rproj.user
+output/

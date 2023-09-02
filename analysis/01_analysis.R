@@ -33,8 +33,10 @@ save(diag_data, file = "data/02_diag_data.RData")
 dbDisconnect(postgres_conn)
 
 
-####### Start with 373,166.
+####### Start with 230,598
 ###### Excluding everyone <18. 218, 821
+load("data/01_orig_data.RData")
+load("data/02_diag_data.RData")
 data <- data %>%
   filter(age >=18) %>%
   # Calculating a few variables I need.
@@ -79,6 +81,25 @@ output <- get_median_iqr(data, "gender", 'icu_los', "ICU length of stay (Days)",
 write.xlsx(output, file = "output/01_output.xlsx", borders = c("all"), colWidths = c("auto"),
            na.string = "-")
 
+############ Getting availability and range of the physiology components of the APACHE II score.
+########### min and max will have same availability
+availability <-
+  data %>%
+  summarise_at(vars(starts_with("max_")),
+               ~ 100*sum(!is.na(.))/nrow(data)) %>%
+  t() %>%
+  data.frame() %>%
+  rownames_to_column("variable_name")
+
+
+
+# Writing the output out.
+wb <- loadWorkbook("output/01_output.xlsx")
+addWorksheet(wb, "2_availability_apache")
+writeData(wb, sheet = "2_availability_apache", x = availability, borders = "columns")
+setColWidths(wb, "2_availability_apache", cols = 1:6, widths = "auto")
+saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
+
 ############ Graph of admission dates, just to make sure things look consistent.
 data %>%
   ggplot(aes(x = lubridate::floor_date(icu_admission_datetime, "month"))) +
@@ -87,6 +108,5 @@ data %>%
   xlab("Date") +
   theme_classic()
 ggsave("02_number_of_patients.png")
-
 
 ########## Funnel plot of SMRs.
