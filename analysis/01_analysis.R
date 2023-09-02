@@ -83,15 +83,20 @@ write.xlsx(output, file = "output/01_output.xlsx", borders = c("all"), colWidths
 
 ############ Getting availability and range of the physiology components of the APACHE II score.
 ########### min and max will have same availability
+########## Doing a lot of messing around to get things into the format I want.
 availability <-
   data %>%
-  summarise_at(vars(starts_with("max_")),
-               ~ 100*sum(!is.na(.))/nrow(data)) %>%
-  t() %>%
-  data.frame() %>%
-  rownames_to_column("variable_name")
-
-
+  select(starts_with("max_")) %>%
+  rename_all(~stringr::str_replace(.,"^max_","")) %>%
+  summarise_all(list(availability = ~round(100*sum(!is.na(.))/nrow(data), 2),
+                    min = ~round(min(., na.rm = TRUE), 2),
+                    max = ~round(max(., na.rm = TRUE), 2)
+                    )) %>%
+  pivot_longer(
+    cols = names(.),
+    names_to = c("variable", "summary"),
+    names_sep = "_") %>%
+  pivot_wider(names_from = "summary", values_from = "value")
 
 # Writing the output out.
 wb <- loadWorkbook("output/01_output.xlsx")
@@ -107,6 +112,17 @@ data %>%
   ylab("Patients per month") +
   xlab("Date") +
   theme_classic()
-ggsave("02_number_of_patients.png")
+ggsave("output/02_number_of_patients.png")
+
+##### Also doing a plot of histograms of values.
+data %>%
+  select(visit_detail_id, starts_with("min")) %>%
+  pivot_longer(cols = !visit_detail_id) %>%
+  ggplot(aes(value)) +
+  geom_histogram() +
+  facet_wrap(~name, scales = "free") +
+  theme_classic()
+
+ggsave("output/03_variable_distributions.png")
 
 ########## Funnel plot of SMRs.
