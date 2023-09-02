@@ -33,16 +33,18 @@ save(diag_data, file = "data/02_diag_data.RData")
 dbDisconnect(postgres_conn)
 
 
-####### 373,166.
+####### Start with 373,166.
 ###### Excluding everyone <18. 218, 821
 data <- data %>%
   filter(age >=18) %>%
   # Calculating a few variables I need.
   mutate(icu_outcome = if_else(!is.na(death_datetime) &
                                  death_datetime > icu_admission_datetime &
-                                 death_datetime < icu_discharge_datetime, "Dead", "Alive"),
+                                 death_datetime <= icu_discharge_datetime, "Dead", "Alive"),
          icu_los = as.numeric(difftime(icu_discharge_datetime, icu_admission_datetime,
-                                       units = "days")))
+                                       units = "days")),
+         # This is just for the table one functions.
+         gender = as.factor(gender))
 
 ##### Calculating apache II score.
 ## Note - I'm not sure what to do about WCC 1000/mcgl.
@@ -50,12 +52,13 @@ data <- fix_apache_ii_units(data)
 data <- calculate_apache_ii_score(data)
 
 ### Calculating apache II prob. Functions in apache_ii_prob file.
-download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path, output_path)
-coef_data <- calculate_apache_ii(get_apache_ii_coefficents, output_path)
+# download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path, output_path)
+coef_data <- get_apache_ii_coefficents(diag_data, output_path)
+# 61,190 missing diagnoses.
 data <- calculate_apache_ii_prob(data, coef_data)
 
 ######### Creating table one. Dividing by gender because I have to divide by something. Not planning to use it.
-output <- make_output_df(data, "gender", include_tests = TRUE)
+output <- make_output_df(data, "gender")
 output <- get_count(data, "gender", "person_id", "Number of patients", output)
 output <- get_unique_count(data, "gender", "care_site_id", "Number of sites", output)
 output <- get_median_iqr(data, "gender", 'age', "Age", output, round =1)
@@ -75,3 +78,15 @@ output <- get_median_iqr(data, "gender", 'icu_los', "ICU length of stay (Days)",
 # writing the output data frame to an excel file
 write.xlsx(output, file = "output/01_output.xlsx", borders = c("all"), colWidths = c("auto"),
            na.string = "-")
+
+############ Graph of admission dates, just to make sure things look consistent.
+data %>%
+  ggplot(aes(x = lubridate::floor_date(icu_admission_datetime, "month"))) +
+  geom_line(stat = "count") +
+  ylab("Patients per month") +
+  xlab("Date") +
+  theme_classic()
+ggsave("02_number_of_patients.png")
+
+
+########## Funnel plot of SMRs.

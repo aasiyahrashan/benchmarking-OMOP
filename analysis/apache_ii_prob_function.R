@@ -38,14 +38,14 @@ download_mapping_files <- function(snomed_mapping_path, ap2_path, ap2_coefs_path
 }
 
 
-#' Calculates APACHE II prob death
-#' @param data Dataset after the SeverityScoresOMOP::calculate_apache_ii_score() function has been run.
+#' Gets diangosis coefficents for APACHE II probabilty of death calculation.
+#' @param data Dataset after get_diagnoses.sql query. The download_mapping_data function should also have been run.
 #' @param output_path file path data is written to
 #' @import dplyr
 #' @import stringr
 #' @importFrom glue glue
 #' @noRd
-get_apache_ii_coefficents <- function(admission_data, output_path){
+get_apache_ii_coefficents <- function(data, output_path){
 
   # Reading in the various mapping sheets.
   # Forcing only one version of the main IDs because joins break otherwise.
@@ -61,20 +61,22 @@ get_apache_ii_coefficents <- function(admission_data, output_path){
   ap2_coefs <- read_csv(glue("{output_path}/data/ap2_coefs.csv")) %>%
     mutate(name = clean_string_to_join(name))
 
+  #### Cleaning up the diangosis name
+  #### The source name has both variable and value. Getting value only.
+  #### It's the section before the first comma.
+  data <- data %>%
+    mutate(diagnosis_name_value_only = sub("^[^,]*,", "", diagnosis_name)) %>%
+    mutate(diagnosis_name_value_only = clean_string_to_join(diagnosis_name_value_only))
 
   # Getting primary diagnoses.
   # Order as follows.
   # First apache_diagnosis, because that was the primary when AP4 was collected.
   # Then operation 1 because that's the first option for operative patients
   # Then disorder 1 because that's the first option for non operative patients.
-  disorder_1 <- admission_data %>%
+  disorder_1 <- data %>%
     ### Only getting diagnoses that have a snomed vocabulary ID
     filter(grepl("^disorder1,*", diagnosis_name)) %>%
     mutate(concept_code = as.character(concept_code)) %>%
-    #### The source name has both variable and value. Getting value only.
-    #### It's the section before the first comma.
-    mutate(diagnosis_name_value_only = sub("^[^,]*,", "", diagnosis_name)) %>%
-    mutate(diagnosis_name_value_only = clean_string_to_join(diagnosis_name_value_only)) %>%
     ##### Joining all the diagnoses by concept ID and name
     # Disorder. Joining on both name and concept ID because there are mismatches.
     left_join(snomed_mapping, by = c("concept_code" = "Variable ID"),
@@ -83,14 +85,12 @@ get_apache_ii_coefficents <- function(admission_data, output_path){
               by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")) %>%
     mutate(disorder_diagnosis =
              clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))) %>%
-    select(-Diagnosis.x, -Diagnosis.y) %>%
    # Joining to APACHE II and cleaning up the diagnosis name
     left_join(ap2, by = c("disorder_diagnosis" = "APACHE IV diagnosis"), na_matches = "never") %>%
-    rename(disorder_ap2 = `APACHE II`) %>%
-    select(person_id, visit_occurrence_id, visit_detail_id, disorder_ap2)
+    select(person_id, visit_occurrence_id, visit_detail_id, disorder_ap2 = `APACHE II`)
 
   ##### Doing the same for operation 1.
-  operation_1 <- admission_data %>%
+  operation_1 <- data %>%
     ### Only getting diagnoses that have a snomed vocabulary ID
     filter(grepl("^operation1,*", diagnosis_name)) %>%
     mutate(concept_code = as.character(concept_code)) %>%
@@ -106,23 +106,27 @@ get_apache_ii_coefficents <- function(admission_data, output_path){
               by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")) %>%
     mutate(operation_diagnosis =
              clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))) %>%
-    select(-Diagnosis.x, -Diagnosis.y) %>%
     # Joining to APACHE II and cleaning up the diagnosis name
     left_join(ap2, by = c("operation_diagnosis" = "APACHE IV diagnosis"), na_matches = "never") %>%
-    rename(operation_ap2 = `APACHE II`) %>%
-    select(person_id, visit_occurrence_id, visit_detail_id, operation_ap2)
+    select(person_id, visit_occurrence_id, visit_detail_id, operation_ap2 = `APACHE II`)
 
   #### The apache diagnosis is simpler because it's already in a AP4 format.
-  apache_iv <- admission_data %>%
+  apache_iv <- data %>%
     ### Only getting diagnoses that have a snomed vocabulary ID
-    filter(grepl("apache_diagnosis,*", diagnosis_name)) %>%
-    left_join(ap2, by = c("primary_apache_ii" = "APACHE IV diagnosis"),
+    filter(grepl("^apache_diagnosis,", diagnosis_name)) %>%
+    #### These diags have the system name as well, which won't match.
+    # They are before the second comma. Removing them.
+    mutate(diagnosis_name_value_only = sub("^[^,]*,", "", diagnosis_name)) %>%
+    mutate(diagnosis_name_value_only = sub("^[^,]*,", "", diagnosis_name_value_only)) %>%
+    mutate(diagnosis_name_value_only = clean_string_to_join(diagnosis_name_value_only)) %>%
+    left_join(ap2, by = c("diagnosis_name_value_only" = "APACHE IV diagnosis"),
               na_matches = "never") %>%
-    rename(apache_iv_ap2 = `APACHE II`)
+    select(person_id, visit_occurrence_id, visit_detail_id, apache_iv_ap2 = `APACHE II`)
 
   #### Now joining them all together and picking primary diagnosis
   # Picking primary diagnosis.
-  admission_data %>%
+  data <- data %>%
+    distinct(person_id, visit_occurrence_id, visit_detail_id) %>%
     left_join(apache_iv, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
     left_join(operation_1, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
     left_join(disorder_1, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
@@ -133,11 +137,20 @@ get_apache_ii_coefficents <- function(admission_data, output_path){
               na_matches = "never") %>%
     rename(ap2_diag_coef = coefficient) %>%
     select(person_id, visit_occurrence_id, visit_detail_id, ap2_diag_coef)
+
+  data
 }
 
+#' Calculates APACHE II prob death
+#' @param data Dataset after the SeverityScoresOMOP::calculate_apache_ii_score() function has been run.
+#' @param coef_data Data after get_apache_ii_coefficents has been run.
+#' @import dplyr
+#' @import stringr
+#' @importFrom glue glue
+#' @noRd
 calculate_apache_ii_prob <- function(data, coef_data){
 
-  data <- left_join(data, coef_data, on = c("person_id", "visit_occurrence_id",
+  data <- left_join(data, coef_data, by = c("person_id", "visit_occurrence_id",
                                             "visit_detail_id"))
 
   # Now calculating prob mortality.
@@ -146,7 +159,7 @@ calculate_apache_ii_prob <- function(data, coef_data){
            logit_ap2 = -3.517 + (0.146*apache_ii_score) + ap2_diag_coef
            + surgical_coef,
            apache_ii_prob = exp(logit_ap2)/(1 + exp(logit_ap2))) %>%
-    select(patient_id, apache_ii_prob)
+    select(-c("surgical_coef", "logit_ap2"))
 
   data
 }
