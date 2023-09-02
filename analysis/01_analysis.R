@@ -35,15 +35,43 @@ dbDisconnect(postgres_conn)
 
 ####### 373,166.
 ###### Excluding everyone <18. 218, 821
-data <- data %>% filter(age >=18)
+data <- data %>%
+  filter(age >=18) %>%
+  # Calculating a few variables I need.
+  mutate(icu_outcome = if_else(!is.na(death_datetime) &
+                                 death_datetime > icu_admission_datetime &
+                                 death_datetime < icu_discharge_datetime, "Dead", "Alive"),
+         icu_los = as.numeric(difftime(icu_discharge_datetime, icu_admission_datetime,
+                                       units = "days")))
 
-##### Note - I'm not sure what to do about WCC 1000/mcgl.
+##### Calculating apache II score.
+## Note - I'm not sure what to do about WCC 1000/mcgl.
 data <- fix_apache_ii_units(data)
 data <- calculate_apache_ii_score(data)
 
-###### Steps. Get the APACHE dataset with the correct start and end date. That's the main patient list.
-### Get care site, death and discharge information for the same date range. Everyone who didn't die lived.
-### Filter for the inclusion critera.
-### Get table one.
-### Calculate APACHE II score and prob of death.
-###
+### Calculating apache II prob. Functions in apache_ii_prob file.
+download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path, output_path)
+coef_data <- calculate_apache_ii(get_apache_ii_coefficents, output_path)
+data <- calculate_apache_ii_prob(data, coef_data)
+
+######### Creating table one. Dividing by gender because I have to divide by something. Not planning to use it.
+output <- make_output_df(data, "gender", include_tests = TRUE)
+output <- get_count(data, "gender", "person_id", "Number of patients", output)
+output <- get_unique_count(data, "gender", "care_site_id", "Number of sites", output)
+output <- get_median_iqr(data, "gender", 'age', "Age", output, round =1)
+output <- get_n_percent_value(data, 'gender', 'gender', "MALE", "Male", output, round =1)
+
+### Scores
+output <- get_median_iqr(data, "gender", 'apache_ii_score', "APACHE II score", output, round =1)
+output <- get_median_iqr(data, "gender", 'apache_ii_prob',
+                         "APACHE II probability of mortality", output, round =1)
+
+### Outcomes
+output <- get_n_percent_value(data, 'gender', 'icu_outcome', "Dead", "ICU mortality",
+                              output, round =1)
+output <- get_median_iqr(data, "gender", 'icu_los', "ICU length of stay (Days)", output, round =1)
+
+
+# writing the output data frame to an excel file
+write.xlsx(output, file = "output/01_output.xlsx", borders = c("all"), colWidths = c("auto"),
+           na.string = "-")
