@@ -115,23 +115,31 @@ setColWidths(wb, "2_availability_apache", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
 ############ Graph of admission dates, just to make sure things look consistent.
-data %>%
+admissions <-
+  data %>%
   ggplot(aes(x = lubridate::floor_date(icu_admission_datetime, "month"))) +
   geom_line(stat = "count") +
   ylab("Patients per month") +
-  xlab("Date") +
-  theme_classic()
+  xlab("Date")
+theme_classic(admissions)
 ggsave("output/02_number_of_patients.png")
 
 ##### Also doing a plot of histograms of values.
-data %>%
+hist <-
+  data %>%
   select(visit_detail_id, starts_with("min")) %>%
   pivot_longer(cols = !visit_detail_id) %>%
   ggplot(aes(value)) +
   geom_histogram() +
-  facet_wrap(~name, scales = "free") +
-  theme_classic()
-
+  facet_wrap(~name, scales = "free")
+custom_theme(hist)
 ggsave("output/03_variable_distributions.png")
 
 ########## Funnel plot of SMRs.
+### Summarising the data by care site ID
+by_care_site <- summarise_by_unit(data) %>%
+  #### There are 15 sites with extremely high SMRs. Removing them so the rest of the graph is visible.
+  filter(smr_ap2 < 5)
+## Drawing the funnel plot
+smr_graph(by_care_site)
+ggsave("output/04_funnel_plot.png")
