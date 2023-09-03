@@ -33,8 +33,8 @@ save(diag_data, file = "data/02_diag_data.RData")
 dbDisconnect(postgres_conn)
 
 
-####### Start with 230,598
-###### Excluding everyone <18. 218, 821
+####### Start with 254,766
+###### Excluding everyone <18. 227,506
 load("data/01_orig_data.RData")
 load("data/02_diag_data.RData")
 data <- data %>%
@@ -51,12 +51,20 @@ data <- data %>%
 ##### Calculating apache II score.
 ## Note - I'm not sure what to do about WCC 1000/mcgl.
 data <- fix_apache_ii_units(data)
+
+#### FOR CCA ONLY. We don't collect paco2, so imputing it as 40 mmHg before we start the apache calculation. This allows the pao2 and fio2 to contribute to the score.
+data <- data %>%
+  mutate(min_paco2orig = min_paco2,
+         max_paco2orig = max_paco2,
+         min_paco2 = if_else(is.na(min_paco2orig), 40, min_paco2),
+         max_paco2 = if_else(is.na(max_paco2orig), 40, max_paco2))
+
 data <- calculate_apache_ii_score(data)
 
 ### Calculating apache II prob. Functions in apache_ii_prob file.
 # download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path, output_path)
 coef_data <- get_apache_ii_coefficents(diag_data, output_path)
-# 61,190 missing diagnoses.
+# 39, 269 missing diagnoses.
 data <- calculate_apache_ii_prob(data, coef_data)
 
 ######### Creating table one. Dividing by gender because I have to divide by something. Not planning to use it.
@@ -96,7 +104,8 @@ availability <-
     cols = names(.),
     names_to = c("variable", "summary"),
     names_sep = "_") %>%
-  pivot_wider(names_from = "summary", values_from = "value")
+  pivot_wider(names_from = "summary", values_from = "value") %>%
+  arrange(desc(availability))
 
 # Writing the output out.
 wb <- loadWorkbook("output/01_output.xlsx")
