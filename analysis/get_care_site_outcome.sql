@@ -2,8 +2,10 @@
 	p.person_id
 	, vo.visit_occurrence_id
 	, vd.visit_detail_id
-	, COALESCE(vd.visit_detail_start_datetime, vo.visit_start_datetime) as icu_admission_datetime
-	, COALESCE(vd.visit_detail_end_datetime, vo.visit_end_datetime) as icu_discharge_datetime
+	, COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date,
+	            vo.visit_start_datetime, vo.visit_start_date) as icu_admission_datetime
+	, COALESCE(vd.visit_detail_end_datetime, vd.visit_detail_start_date,
+	            vo.visit_end_datetime, vo.visit_start_date) as icu_discharge_datetime
 	, cs.care_site_id
 	, cs.care_site_name
 	, d.death_datetime
@@ -19,5 +21,7 @@
 	--- Getting death information.
 	left join {schema}.death d
 	on p.person_id = d.person_id
-	where COALESCE(vd.visit_detail_start_datetime, vo.visit_start_datetime) >= '{start_date}'
-	and COALESCE(vd.visit_detail_start_datetime, vo.visit_start_datetime) < '{end_date}'
+	where COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date,
+	                vo.visit_start_datetime, vo.visit_start_date) >= '{start_date}'
+	and COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date,
+	              vo.visit_start_datetime, vo.visit_start_date) < '{end_date}'

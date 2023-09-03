@@ -5,15 +5,18 @@ with icu_admission_details as (
 	p.person_id
 	, vo.visit_occurrence_id
 	, vd.visit_detail_id
-	, COALESCE(vd.visit_detail_start_datetime, vo.visit_start_datetime) as icu_admission_datetime
+	, COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date,
+	            vo.visit_start_datetime, vo.visit_start_date) as icu_admission_datetime
 	from {schema}.person p
 	inner join {schema}.visit_occurrence vo
 	on p.person_id = vo.person_id
 	-- this should contain ICU stay information, if it exists at all
 	left join {schema}.visit_detail vd
 	on p.person_id = vd.person_id
-	where COALESCE(vd.visit_detail_start_datetime, vo.visit_start_datetime) >= '{start_date}'
-	and COALESCE(vd.visit_detail_start_datetime, vo.visit_start_datetime) < '{end_date}'
+	where COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date,
+	               vo.visit_start_datetime, vo.visit_start_date) >= '{start_date}'
+	and COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date,
+	              vo.visit_start_datetime, vo.visit_start_date) < '{end_date}'
 
 ),
 ---- Getting both operative and non-operative diagnoses.
@@ -22,7 +25,7 @@ condition_data as (
 select
 c.person_id,
 c.condition_concept_id as diagnosis_concept_id,
-c.condition_start_datetime as diagnosis_start_datetime,
+coalesce(c.condition_start_datetime, c.condition_start_date) as diagnosis_start_datetime,
 c.visit_occurrence_id,
 c.visit_detail_id,
 c.condition_source_value as diagnosis_name,
@@ -35,7 +38,8 @@ on adm.person_id = c.person_id
 and adm.visit_occurrence_id = c.visit_occurrence_id
 and (adm.visit_detail_id = c.visit_detail_id or adm.visit_detail_id is null)
 --- Only want data recorded on the day of admission
-and DATE_PART('day', c.condition_start_datetime - adm.icu_admission_datetime) = 0
+and DATE_PART('day',
+              coalesce(c.condition_start_datetime, c.condition_start_date) - adm.icu_admission_datetime) = 0
 --- getting source IDs to use when getting diagnosis coefficents.
 inner join {schema}.concept
 on concept.concept_id = c.condition_concept_id),
@@ -45,7 +49,7 @@ procedure_data as (
 select
 p.person_id,
 p.procedure_concept_id as diagnosis_concept_id,
-p.procedure_datetime as diagnosis_start_datetime,
+coalesce(p.procedure_datetime, p.procedure_date) as diagnosis_start_datetime,
 p.visit_occurrence_id,
 p.visit_detail_id,
 p.procedure_source_value as diagnosis_name,
@@ -58,7 +62,7 @@ on adm.person_id = p.person_id
 and adm.visit_occurrence_id = p.visit_occurrence_id
 and (adm.visit_detail_id = p.visit_detail_id or adm.visit_detail_id is null)
 --- Only want data recorded on the day of admission
-and DATE_PART('day', p.procedure_datetime - adm.icu_admission_datetime) = 0
+and DATE_PART('day', coalesce(p.procedure_datetime, p.procedure_date) - adm.icu_admission_datetime) = 0
 --- getting source IDs to use when getting diagnosis coefficents.
 inner join {schema}.concept
 on concept.concept_id = p.procedure_concept_id)
