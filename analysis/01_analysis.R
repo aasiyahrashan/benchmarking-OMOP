@@ -26,15 +26,12 @@ raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
        start_date = start_date,
        end_date = end_date)
 #### Running the query
-###### A bunch of patients appear to be missing diagnoses. Remember to look into why.
 diag_data <- dbGetQuery(postgres_conn, raw_sql)
 save(diag_data, file = "data/02_diag_data.RData")
 
 dbDisconnect(postgres_conn)
 
-
-####### Start with 254,766
-###### Excluding everyone <18. 227,506
+###### Excluding everyone <18.
 load("data/01_orig_data.RData")
 load("data/02_diag_data.RData")
 data <- data %>%
@@ -49,7 +46,6 @@ data <- data %>%
          gender = as.factor(gender))
 
 ##### Calculating apache II score.
-## Note - I'm not sure what to do about WCC 1000/mcgl.
 data <- fix_apache_ii_units(data)
 
 #### FOR CCA ONLY. We don't collect paco2, so imputing it as 40 mmHg before we start the apache calculation. This allows the pao2 and fio2 to contribute to the score.
@@ -61,14 +57,23 @@ data <- data %>%
 
 data <- calculate_apache_ii_score(data)
 
-### Calculating apache II prob. Functions in apache_ii_prob file.
+### Calculating apache II prob.
+### Functions in apache_ii_prob file. The coefficents and mapping file functions only apply to CCAA.
+### The 'coef_dataset' for the APACHE II prob calculation needs to contain patient ID and the corresponding apache II diagnosis coefficent.
 # download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path, output_path)
 coef_data <- get_apache_ii_coefficents(diag_data, output_path)
 # 39, 269 missing diagnoses.
 data <- calculate_apache_ii_prob(data, coef_data)
 
 ##### For SMRs, summarising the data by care site ID
-by_care_site <- summarise_by_unit(data)
+by_care_site <- data %>%
+  group_by(care_site_id) %>%
+  summarise(total = sum(!is.na(person_id)),
+            # SMRs
+            expected_ap2 = median(apache_ii_prob, na.rm = TRUE)*total,
+            n_dead = sum(icu_outcome == "Dead" , na.rm = TRUE),
+            smr_ap2 = n_dead/expected_ap2) %>%
+  ungroup()
 
 ######### Creating table one. Dividing by gender because I have to divide by something. Not planning to use it.
 output <- make_output_df(data, "gender")
@@ -83,7 +88,7 @@ output <- get_median_iqr(data, "gender", 'apache_ii_prob',
                          "APACHE II probability of mortality", output, round =1)
 
 #### SMR for APACHE II. Using the care site dataset.
-#### Have to create it separately and paste it to the output dataset.
+#### Have to create the row separately and paste it to the output dataset.
 smr_row <-
   paste0(
   round(median(by_care_site$smr_ap2, na.rm = TRUE), 2), " (",

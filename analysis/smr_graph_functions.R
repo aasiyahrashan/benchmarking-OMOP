@@ -1,20 +1,3 @@
-#' Summarises by unit for graph.
-#' @param data dataset containing admission and discharge info one row per patient.
-#' @import dplyr
-#' @noRd
-summarise_by_unit <- function(data){
-
-  by_unit <- data %>%
-    group_by(care_site_id) %>%
-    summarise(total = sum(!is.na(person_id)),
-              # SMRs
-              expected_ap2 = median(apache_ii_prob, na.rm = TRUE)*total,
-              n_dead = sum(icu_outcome == "Dead" , na.rm = TRUE),
-              smr_ap2 = n_dead/expected_ap2) %>%
-    ungroup()
-  by_unit
-}
-
 # Setting a default theme
 #' @param graph A ggplot object to be formatted
 #' @import ggplot2
@@ -44,12 +27,6 @@ smr_graph <- function(by_split, unit_id, title ="", custom_colours){
   by_split <- by_split %>%
     mutate(expected = expected_ap2,
            smr = n_dead/expected)
-
-  # if (unit_id == 'all'){
-  #   by_split$icu = 'All ICUs'
-  # } else {
-  #   by_split$icu = if_else(by_split$unitId == unit_id, 'This ICU', 'Other ICUs')
-  # }
 
   # Dealing with case where expected N is empty.
   max <- ceiling(max(by_split$total, na.rm = T))
