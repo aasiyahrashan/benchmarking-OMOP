@@ -67,6 +67,9 @@ coef_data <- get_apache_ii_coefficents(diag_data, output_path)
 # 39, 269 missing diagnoses.
 data <- calculate_apache_ii_prob(data, coef_data)
 
+##### For SMRs, summarising the data by care site ID
+by_care_site <- summarise_by_unit(data)
+
 ######### Creating table one. Dividing by gender because I have to divide by something. Not planning to use it.
 output <- make_output_df(data, "gender")
 output <- get_count(data, "gender", "person_id", "Number of patients", output)
@@ -78,6 +81,18 @@ output <- get_n_percent_value(data, 'gender', 'gender', "MALE", "Male", output, 
 output <- get_median_iqr(data, "gender", 'apache_ii_score', "APACHE II score", output, round =1)
 output <- get_median_iqr(data, "gender", 'apache_ii_prob',
                          "APACHE II probability of mortality", output, round =1)
+
+#### SMR for APACHE II. Using the care site dataset.
+#### Have to create it separately and paste it to the output dataset.
+smr_row <-
+  paste0(
+  round(median(by_care_site$smr_ap2, na.rm = TRUE), 2), " (",
+  round(quantile(by_care_site$smr_ap2, 0.25, na.rm = TRUE), 2), " - ",
+  round(quantile(by_care_site$smr_ap2, 0.75, na.rm = TRUE), 2), ")")
+
+smr_row <- c("APACHE II SMR Median (IQR)", smr_row, "", "")
+
+output <- rbind(output, smr_row)
 
 ### Outcomes
 output <- get_n_percent_value(data, 'gender', 'icu_outcome', "Dead", "ICU mortality",
@@ -129,6 +144,27 @@ hist <-
   data %>%
   select(visit_detail_id, starts_with("min")) %>%
   pivot_longer(cols = !visit_detail_id) %>%
+  filter(name != "min_paco2",
+         name != "min_sbp",
+         name != "min_dbp") %>%
+  ### Should really join this to the units in the dataset instead of hardcoding.
+  mutate(name = case_when(
+    name == "min_hr" ~ "Heart rate",
+    name == "min_bicarbonate" ~ "Bicarbonate mmol/L",
+    name == "min_creatinine" ~ "Creatinine mg/dL",
+    name == "min_map" ~ "Mean arterial pressure",
+    name == "min_fio2" ~ "FiO2",
+    name == "min_gcs" ~ "GCS",
+    name == "min_hematocrit" ~ "Hematocrit %",
+    name == "min_hr" ~ "Heart rate",
+    name == "min_paco2orig" ~ "PaCO2 mmHg",
+    name == "min_pao2" ~ "PaO2 mmHg",
+    name == "min_ph" ~ "pH",
+    name == "min_potassium" ~ "Potassium mmol/L",
+    name == "min_rr" ~ "Respiratory rate",
+    name == "min_sodium" ~ "Sodium mmol/L",
+    name == "min_temp" ~ "Temperature C",
+    name == "min_wcc" ~ "White cell count 10^9/L")) %>%
   ggplot(aes(value)) +
   geom_histogram() +
   facet_wrap(~name, scales = "free")
@@ -136,8 +172,7 @@ custom_theme(hist)
 ggsave("output/03_variable_distributions.png")
 
 ########## Funnel plot of SMRs.
-### Summarising the data by care site ID
-by_care_site <- summarise_by_unit(data) %>%
+by_care_site <- by_care_site %>%
   #### There are 15 sites with extremely high SMRs. Removing them so the rest of the graph is visible.
   filter(smr_ap2 < 5)
 ## Drawing the funnel plot
