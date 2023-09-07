@@ -31,9 +31,21 @@ save(diag_data, file = "data/02_diag_data.RData")
 
 dbDisconnect(postgres_conn)
 
-###### Excluding everyone <18.
+################ Starting data analysis.
 load("data/01_orig_data.RData")
 load("data/02_diag_data.RData")
+
+### This is a CCAA specific calculation of APACHE II coefficients.
+### It also get the primary diagnosis for a patient.
+download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path,
+                       implementation_asia_path, implementation_africa_path,
+                       output_path)
+
+coef_data <- get_apache_ii_coefficents(diag_data, output_path)
+
+###### Applying exclusion critera.
+data <- apply_ccaa_specific_exclusions(data, output_path)
+
 data <- data %>%
   filter(age >=18) %>%
   # Calculating a few variables I need.
@@ -58,10 +70,7 @@ data <- data %>%
 data <- calculate_apache_ii_score(data)
 
 ### Calculating apache II prob.
-### Functions in apache_ii_prob file. The coefficents and mapping file functions only apply to CCAA.
 ### The 'coef_dataset' for the APACHE II prob calculation needs to contain patient ID and the corresponding apache II diagnosis coefficent.
-# download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path, output_path)
-coef_data <- get_apache_ii_coefficents(diag_data, output_path)
 # 39, 269 missing diagnoses.
 data <- calculate_apache_ii_prob(data, coef_data)
 

@@ -12,13 +12,54 @@ clean_string_to_join <- function(string_var){
   string_var <- str_replace_all(string_var, "[^[:alnum:]]", "")
 }
 
-download_mapping_files <- function(snomed_mapping_path, ap2_path, ap2_coefs_path, output_path){
+apply_ccaa_specific_exclusions <- function(data, output_path){
+
+  all_implementation <- read_csv(glue("{output_path}/data/all_implementation.csv"))
+  all_implementation <-
+    ### Only including valid registries
+    filter(!is.na(`Unit ID`)) %>%
+    filter(Registry %in% c("PRICE", "IRIS", "NICR", "Afghanistan",
+                           "Malaysia", "Bangladesh", "Kenya", "Uganda", "Ghana",
+                           "Sierra Leone", "South Africa", "Ethiopia")) %>%
+    ### Excluding test units, wards, pediatric and neonatal ICUs, HDUs, maternity units,
+    # emergency unit.
+    filter(!`ICU Type` %in% c("TEST", "WARD", "PEDIATRIC", "NEONATAL")) %>%
+    filter(!grepl("*PICU*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*Pediatric*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*Ward*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*HDU*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*High Risk Unit*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*High Dependency*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*High care unit*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*GyneObs ICU*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*Gyn/Obs*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*OBS*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*Gyne Post Operative*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*G/OICU*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*Obstetric ICU*", `ICU Name`, ignore.case=TRUE),
+           !grepl("*Maternal HDU*", `ICU Name`, ignore.case=TRUE),
+           !grepl("EU", `ICU Name`, ignore.case=TRUE),
+           !grepl("ED", `ICU Name`, ignore.case=TRUE))
+
+  #### Joining to the main dataset so only patients admitted to allowed units are included.
+  data <- data %>%
+    mutate(`Unit ID` = gsub( " .*$", "", care_site_name)) %>%
+    inner_join(all_implementation, by = "Unit ID")
+
+  data
+}
+
+download_mapping_files <- function(snomed_mapping_path, ap2_path, ap2_coefs_path,
+                                   implementation_asia_path,
+                                   implementation_africa_path,
+                                   output_path){
 
   # Only downloading the data if it doesn't already exist.
   files_dont_exist <-
     !file.exists(glue("{output_path}/data/snomed_ap4.csv"),
                  glue("{output_path}/data/ap2.csv"),
-                 glue("{output_path}/data/ap2_coefs.csv"))
+                 glue("{output_path}/data/ap2_coefs.csv"),
+                 glue("{output_path}/data/all_implementation.csv"))
 
   if(any(files_dont_exist)){
       googlesheets4::gs4_auth(email = "*@nicslk.com")
@@ -34,6 +75,34 @@ download_mapping_files <- function(snomed_mapping_path, ap2_path, ap2_coefs_path
       write_csv(file = glue("{output_path}/data/ap2.csv"))
     ap2_coefs <- read_sheet(ap2_coefs_path) %>%
       write_csv(file = glue("{output_path}/data/ap2_coefs.csv"))
+
+    #### Getting implementation sheet data.
+    asia <- implementation_asia_path %>%
+      sheet_names() %>%
+      #### This removes the values from the vector above. Removing invalid registries and metadata sheets.
+      setdiff(c("CCA", "NICS", "Demo", "sheet",
+                "weekly validation", "Live Sites Contacts", "Troubleshooting",
+                "Sheet9", "check list ", "expenses", "Philippines", "Sri Lanka",
+                "Maldives", "Indonesia")) %>%
+      set_names() %>%
+      map_df(~read_sheet(ss = implementation_asia_path, sheet = ., skip = 7) %>%
+               select(`Hospital name`, `ICU Name`, `Unit ID`, `ICU Type`),
+             .id = "Registry")
+
+    africa <- implementation_africa_path %>%
+      sheet_names() %>%
+      #### This removes the values from the vector above. Removing invalid registries and metadata sheets
+      setdiff(c("Ethical approvals", "All GECO", "NICS", "weekly validation",
+                "Live Sites Contacts", "Troubleshooting",
+                "Sheet9", "check list ", "expenses", "Tasks for Madiha",
+                "Nigeria", "Namibia", "Cameroon")) %>%
+      set_names() %>%
+      map_df(~read_sheet(ss = implementation_africa_path, sheet = ., skip = 7) %>%
+               select(`Hospital name`, `ICU Name`, `Unit ID`, `ICU Type`),
+             .id = "Registry")
+
+      rbind(asia, africa) %>%
+      write_csv(file = glue("{output_path}/data/all_implementation.csv"))
   }
 }
 
@@ -135,7 +204,8 @@ get_apache_ii_coefficents <- function(data, output_path){
     # Getting the coefficients based on the diag string.
     left_join(ap2_coefs, by = c("primary_diag_ap2" = "name"),
               na_matches = "never") %>%
-    select(person_id, visit_occurrence_id, visit_detail_id, ap2_diag_coef = coefficient)
+    select(person_id, visit_occurrence_id, visit_detail_id, primary_diag_ap2,
+           ap2_diag_coef = coefficient)
 
   data
 }
