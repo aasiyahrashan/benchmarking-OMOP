@@ -156,7 +156,9 @@ get_apache_ii_coefficents <- function(data, output_path){
              clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))) %>%
    # Joining to APACHE II and cleaning up the diagnosis name
     left_join(ap2, by = c("disorder_diagnosis" = "APACHE IV diagnosis"), na_matches = "never") %>%
-    select(person_id, visit_occurrence_id, visit_detail_id, disorder_ap2 = `APACHE II`)
+    select(person_id, visit_occurrence_id, visit_detail_id,
+           diagnosis_name_value_only_disorder = diagnosis_name_value_only,
+           disorder_ap2 = `APACHE II`)
 
   ##### Doing the same for operation 1.
   operation_1 <- data %>%
@@ -177,7 +179,9 @@ get_apache_ii_coefficents <- function(data, output_path){
              clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))) %>%
     # Joining to APACHE II and cleaning up the diagnosis name
     left_join(ap2, by = c("operation_diagnosis" = "APACHE IV diagnosis"), na_matches = "never") %>%
-    select(person_id, visit_occurrence_id, visit_detail_id, operation_ap2 = `APACHE II`)
+    select(person_id, visit_occurrence_id, visit_detail_id,
+           diagnosis_name_value_only_operation = diagnosis_name_value_only,
+           operation_ap2 = `APACHE II`)
 
   #### The apache diagnosis is simpler because it's already in a AP4 format.
   apache_iv <- data %>%
@@ -190,7 +194,9 @@ get_apache_ii_coefficents <- function(data, output_path){
     mutate(diagnosis_name_value_only = clean_string_to_join(diagnosis_name_value_only)) %>%
     left_join(ap2, by = c("diagnosis_name_value_only" = "APACHE IV diagnosis"),
               na_matches = "never") %>%
-    select(person_id, visit_occurrence_id, visit_detail_id, apache_iv_ap2 = `APACHE II`)
+    select(person_id, visit_occurrence_id, visit_detail_id,
+           diagnosis_name_value_only_ap2 = diagnosis_name_value_only,
+           apache_iv_ap2 = `APACHE II`)
 
   #### Now joining them all together and picking primary diagnosis
   # Picking primary diagnosis.
@@ -199,12 +205,18 @@ get_apache_ii_coefficents <- function(data, output_path){
     left_join(apache_iv, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
     left_join(operation_1, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
     left_join(disorder_1, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
+    mutate(primary_diagnosis_name =
+             coalesce(diagnosis_name_value_only_ap2,
+                      diagnosis_name_value_only_operation,
+                      diagnosis_name_value_only_disorder)) %>%
     mutate(primary_diag_ap2 = clean_string_to_join(coalesce(apache_iv_ap2,
                                                             operation_ap2, disorder_ap2))) %>%
     # Getting the coefficients based on the diag string.
     left_join(ap2_coefs, by = c("primary_diag_ap2" = "name"),
               na_matches = "never") %>%
-    select(person_id, visit_occurrence_id, visit_detail_id, primary_diag_ap2,
+    select(person_id, visit_occurrence_id, visit_detail_id,
+           primary_diagnosis_name,
+           primary_diag_ap2,
            ap2_diag_coef = coefficient)
 
   data

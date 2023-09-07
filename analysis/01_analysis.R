@@ -18,7 +18,6 @@ outcome_data <- dbGetQuery(postgres_conn, raw_sql)
 
 data <- left_join(data, outcome_data, by = c("person_id", "visit_occurrence_id",
                                              "visit_detail_id", "icu_admission_datetime"))
-save(data, file = "data/01_orig_data.RData")
 
 #### Getting diagnosis data. Query is saved in sql file.
 raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
@@ -27,13 +26,8 @@ raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
        end_date = end_date)
 #### Running the query
 diag_data <- dbGetQuery(postgres_conn, raw_sql)
-save(diag_data, file = "data/02_diag_data.RData")
 
 dbDisconnect(postgres_conn)
-
-################ Starting data analysis.
-load("data/01_orig_data.RData")
-load("data/02_diag_data.RData")
 
 ### This is a CCAA specific calculation of APACHE II coefficients.
 ### It also get the primary diagnosis for a patient.
@@ -41,13 +35,23 @@ download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path,
                        implementation_asia_path, implementation_africa_path,
                        output_path)
 
+### This dataset needs variables called primary_diagnosis_name and ap_diag_coef.
 coef_data <- get_apache_ii_coefficents(diag_data, output_path)
+data <- left_join(data, coef_data, by = c("person_id", "visit_occurrence_id",
+                                          "visit_detail_id"))
+save(data, file = "data/01_orig_data.RData")
+save(diag_data, file = "data/02_diag_data.RData")
+
+################ Starting data analysis.
+load("data/01_orig_data.RData")
+load("data/02_diag_data.RData")
 
 ###### Applying exclusion critera.
 data <- apply_ccaa_specific_exclusions(data, output_path)
 
 data <- data %>%
   filter(age >=18) %>%
+  filter(!grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE)) %>%
   # Calculating a few variables I need.
   mutate(icu_outcome = if_else(!is.na(death_datetime) &
                                  death_datetime > icu_admission_datetime &
