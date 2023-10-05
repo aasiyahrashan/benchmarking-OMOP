@@ -1,20 +1,21 @@
 ####### First getting database containing apache variables. Will save it and use for further analysis.
-postgres_conn <- postgres_connect(host = host,
-                                  dbname = dbname,
-                                  port = 5432,
-                                  user = user,
-                                  password = password)
+conn <- connect_omop(driver = driver,
+                     host = host,
+                     dbname = dbname,
+                     port = port,
+                     user = user,
+                     password = password)
 
 ### Getting dataset of physiology variables
-data <- get_score_variables(postgres_conn, schema, start_date, end_date,
-                            0, 1, "CCAA", "APACHE II")
+data <- get_score_variables(conn, schema, start_date, end_date,
+                            0, 1, dataset_name, "APACHE II")
 
 ###### Getting care site and death data and merging with main dataset.
 raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
   glue(schema = schema,
        start_date = start_date,
        end_date = end_date)
-outcome_data <- dbGetQuery(postgres_conn, raw_sql)
+outcome_data <- dbGetQuery(conn, raw_sql)
 
 data <- left_join(data, outcome_data, by = c("person_id", "visit_occurrence_id",
                                              "visit_detail_id", "icu_admission_datetime"))
@@ -25,9 +26,9 @@ raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
        start_date = start_date,
        end_date = end_date)
 #### Running the query
-diag_data <- dbGetQuery(postgres_conn, raw_sql)
+diag_data <- dbGetQuery(conn, raw_sql)
 
-dbDisconnect(postgres_conn)
+dbDisconnect(conn)
 
 ### This is a CCAA specific calculation of APACHE II coefficients.
 ### It also get the primary diagnosis for a patient.
