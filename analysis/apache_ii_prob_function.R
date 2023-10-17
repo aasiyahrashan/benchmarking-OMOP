@@ -49,14 +49,16 @@ apply_ccaa_specific_exclusions <- function(data, output_path){
   data
 }
 
-download_mapping_files <- function(snomed_mapping_path, ap2_path, ap2_coefs_path,
+download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
+                                   ap2_path, ap2_coefs_path,
                                    implementation_asia_path,
                                    implementation_africa_path,
                                    output_path){
 
   # Only downloading the data if it doesn't already exist.
   files_dont_exist <-
-    !file.exists(glue("{output_path}/data/snomed_ap4.csv"),
+    !file.exists(glue("{output_path}/data/freetext_snomed.csv"),
+                 glue("{output_path}/data/snomed_ap4.csv"),
                  glue("{output_path}/data/ap2.csv"),
                  glue("{output_path}/data/ap2_coefs.csv"),
                  glue("{output_path}/data/all_implementation.csv"))
@@ -71,6 +73,8 @@ download_mapping_files <- function(snomed_mapping_path, ap2_path, ap2_coefs_path
       mutate(`Variable ID` = as.character(`Variable ID`)) %>%
       write_csv(file = glue("{output_path}/data/snomed_ap4.csv"))
 
+    freetext_mapped <- read_sheet(freetext_mapping_path) %>%
+      write_csv(file = glue("{output_path}/data/freetext_snomed.csv"))
     ap2 <- read_sheet(ap2_path, sheet = "Sh1-AP4toAP2") %>%
       write_csv(file = glue("{output_path}/data/ap2.csv"))
     ap2_coefs <- read_sheet(ap2_coefs_path) %>%
@@ -118,12 +122,13 @@ get_apache_ii_coefficents <- function(data, output_path){
 
   # Reading in the various mapping sheets.
   # Forcing only one version of the main IDs because joins break otherwise.
+  freetext_mapping <- read_csv(glue("{output_path}/data/freetext_snomed.csv"))
+
   # Have also tried to correct on mapping sheets.
   snomed_mapping <- read_csv(glue("{output_path}/data/snomed_ap4.csv")) %>%
     mutate(`Variable ID` = as.character(`Variable ID`),
            `Fully Specified Names (FSNs)` = clean_string_to_join(`Fully Specified Names (FSNs)`)) %>%
-    distinct(`Variable ID`, .keep_all = TRUE) %>%
-    distinct(`Fully Specified Names (FSNs)`, .keep_all = TRUE)
+    distinct(`Variable ID`, .keep_all = TRUE)
   ap2 <- read_csv(glue("{output_path}/data/ap2.csv")) %>%
     mutate(`APACHE IV diagnosis` = clean_string_to_join(`APACHE IV diagnosis`)) %>%
     distinct(`APACHE IV diagnosis`, .keep_all = TRUE)
@@ -135,7 +140,19 @@ get_apache_ii_coefficents <- function(data, output_path){
   #### It's the section before the first comma.
   data <- data %>%
     mutate(diagnosis_name_value_only = sub("^[^,]*,", "", diagnosis_name)) %>%
-    mutate(diagnosis_name_value_only = clean_string_to_join(diagnosis_name_value_only))
+    mutate(diagnosis_name_value_only = str_trim(diagnosis_name_value_only),
+           diagnosis_name_value_only = str_squish(diagnosis_name_value_only),
+           diagnosis_name_value_only = tolower(diagnosis_name_value_only),
+           diagnosis_name_value_only = str_replace_all(diagnosis_name_value_only, "[[:punct:]]", ""))
+
+  freetext_diags <- data %>%
+    filter(grepl("^disorder1,*", diagnosis_name) |
+             grepl("^operation1,*", diagnosis_name)) %>%
+    filter(concept_code == 0) %>%
+    left_join(freetext_mapping, by = c("diagnosis_name_value_only" = "sourceName")) %>%
+    left_join(snomed_mapping, by = c("SNOMED code" = "Variable ID")) %>%
+
+
 
   # Getting primary diagnoses.
   # Order as follows.

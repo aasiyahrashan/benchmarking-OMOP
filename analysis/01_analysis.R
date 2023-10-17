@@ -31,7 +31,7 @@ dbDisconnect(postgres_conn)
 
 ### This is a CCAA specific calculation of APACHE II coefficients.
 ### It also get the primary diagnosis for a patient.
-download_mapping_files(snomed_mapping_path, ap2_path, ap2_coefs_path,
+download_mapping_files(freetext_mapping_path, snomed_mapping_path, ap2_path, ap2_coefs_path,
                        implementation_asia_path, implementation_africa_path,
                        output_path)
 
@@ -46,6 +46,22 @@ save(diag_data, file = "data/02_diag_data.RData")
 load("data/01_orig_data.RData")
 load("data/02_diag_data.RData")
 
+# ###### Getting free text diagnoses unmapped to SNOMED for Usagi.
+# free_text <- diag_data %>%
+#   filter(grepl("^disorder1,*", diagnosis_name) |
+#          grepl("^operation1,*", diagnosis_name),
+#          diagnosis_concept_id == 0) %>%
+#   mutate(`Source term` = sub("^[^,]*,", "", diagnosis_name)) %>%
+#   mutate(`Source term` = str_trim(`Source term`),
+#          `Source term` = str_squish(`Source term`),
+#          `Source term` = tolower(`Source term`),
+#          `Source term` = str_replace_all(`Source term`, "[[:punct:]]", "")) %>%
+#   group_by(`Source term`) %>%
+#   summarise(frequency = n()) %>%
+#   filter(frequency ==1)
+#
+# write_csv(free_text, file ="data/03_unmapped_freetext.csv")
+
 ###### Applying exclusion critera.
 data <- apply_ccaa_specific_exclusions(data, output_path)
 
@@ -58,11 +74,11 @@ data <- data %>%
                                  death_datetime <= icu_discharge_datetime, "Dead", "Alive"),
          icu_los = as.numeric(difftime(icu_discharge_datetime, icu_admission_datetime,
                                        units = "days")),
-         # This is just for the table one functions.
-         gender = as.factor(gender))
+         admission_year = as.factor(year(icu_admission_datetime)))
 
 ##### Calculating apache II score.
 data <- fix_apache_ii_units(data)
+data <- fix_implausible_values_apache_ii(data)
 
 #### FOR CCA ONLY. We don't collect paco2, so imputing it as 40 mmHg before we start the apache calculation. This allows the pao2 and fio2 to contribute to the score.
 data <- data %>%
@@ -72,12 +88,49 @@ data <- data %>%
          max_paco2 = if_else(is.na(max_paco2orig), 40, max_paco2))
 
 data <- calculate_apache_ii_score(data)
-
 ### Calculating apache II prob.
 ### The 'coef_dataset' for the APACHE II prob calculation needs to contain patient ID and the corresponding apache II diagnosis coefficent.
 # 39, 269 missing diagnoses.
 data <- calculate_apache_ii_prob(data, coef_data)
 
+######################### Multiple imputation APACHE II score
+######################### Using predictive mean matching to impute missing physiology values.
+### Technique taken from this book. https://stefvanbuuren.name/fimd/sec-nutshell.html
+### As per 6.4, imputing physiology values instead of AP2 score or subscores so we don't lose the more granular information.
+### As per chapter 6.3, deliberately including outcome variables as predictors for the imputation.
+
+#### TODO. CHECK the real data to see if min and max are always the same value.
+#### This will mean there was only one variable collected, so only one variable needs to be imputed.
+#### If not, both min and max need to be imputed.
+#### TODO check other variable names and see if any of them can be included as predictor. Eg, comorbidities.
+
+# Defining APACHE II variables.
+apache <- c("max_temp", "min_temp", "min_wcc", "max_wcc",
+            "max_fio2", "min_paco2", "min_pao2", "min_hematocrit", "max_hematocrit",
+            "min_hr", "max_hr", "min_rr", "max_rr", "min_ph", "max_ph",
+            "min_bicarbonate", "max_bicarbonate", "min_sodium", "max_sodium",
+            "min_potassium", "max_potassium", "min_gcs", "min_creatinine",
+            "max_creatinine", "sbp_max", "sbp_min", "dbp_max", "dbp_min")
+
+mice_data <- data %>%
+  select(person_id, age, gender, icu_outcome, icu_los, !!apache)
+
+### Creating a predictor matrix and deliberately excluding the person_id variable as a predictor.
+pred <- make.predictorMatrix(mice_data)
+pred['person_id'] <- 0
+mice_data <- mice(mice_data, pred=pred, m = 5, maxit = 1000,
+                  method = "pmm", seed = 100)
+
+### Converting to long format containing all imputed datasets stacked on top of each other, then
+### calculating APACHE II score, then converting back to wide for further analysis/pooling.
+### Instructions followed from section 6.4
+### Using the long format is acceptable, since this is just a calclation of dervied variables per row, and there is no aggregation of results across rows.
+mice_long <- complete(mice_data, "long", include = TRUE)
+mice_long <- calculate_apache_ii_score(mice_long, imputation = "none")
+mice_long <- calculate_apache_ii_prob(mice_long, coef_data)
+mice_data <- as.mids(mice_long)
+
+################# Calculating SMRs
 ##### For SMRs, summarising the data by care site ID
 by_care_site <- data %>%
   group_by(care_site_id) %>%
@@ -89,15 +142,16 @@ by_care_site <- data %>%
   ungroup()
 
 ######### Creating table one. Dividing by gender because I have to divide by something. Not planning to use it.
-output <- make_output_df(data, "gender")
-output <- get_count(data, "gender", "person_id", "Number of patients", output)
-output <- get_unique_count(data, "gender", "care_site_id", "Number of sites", output)
-output <- get_median_iqr(data, "gender", 'age', "Age", output, round =1)
-output <- get_n_percent_value(data, 'gender', 'gender', "MALE", "Male", output, round =1)
+output <- make_output_df(data, "admission_year")
+output <- get_count(data, "admission_year", "person_id", "Number of patients", output)
+output <- get_unique_count(data, "admission_year", "care_site_id", "Number of sites", output)
+output <- get_median_iqr(data, "admission_year", 'age', "Age", output, round =1)
+output <- get_n_percent_value(data, 'admission_year', 'gender', "MALE", "Male", output, round =1)
 
 ### Scores
-output <- get_median_iqr(data, "gender", 'apache_ii_score', "APACHE II score", output, round =1)
-output <- get_median_iqr(data, "gender", 'apache_ii_prob',
+output <- get_median_iqr(data, "admission_year",
+                         'apache_ii_score', "APACHE II score", output, round =1)
+output <- get_median_iqr(data, "admission_year", 'apache_ii_prob',
                          "APACHE II probability of mortality", output, round =1)
 
 #### SMR for APACHE II. Using the care site dataset.
@@ -113,9 +167,10 @@ smr_row <- c("APACHE II SMR Median (IQR)", smr_row, "", "")
 output <- rbind(output, smr_row)
 
 ### Outcomes
-output <- get_n_percent_value(data, 'gender', 'icu_outcome', "Dead", "ICU mortality",
+output <- get_n_percent_value(data, 'admission_year', 'icu_outcome', "Dead", "ICU mortality",
                               output, round =1)
-output <- get_median_iqr(data, "gender", 'icu_los', "ICU length of stay (Days)", output, round =1)
+output <- get_median_iqr(data, "admission_year", 'icu_los',
+                         "ICU length of stay (Days)", output, round =1)
 
 
 # writing the output data frame to an excel file
@@ -123,22 +178,7 @@ write.xlsx(output, file = "output/01_output.xlsx", borders = c("all"), colWidths
            na.string = "-")
 
 ############ Getting availability and range of the physiology components of the APACHE II score.
-########### min and max will have same availability
-########## Doing a lot of messing around to get things into the format I want.
-availability <-
-  data %>%
-  select(starts_with("max_")) %>%
-  rename_all(~stringr::str_replace(.,"^max_","")) %>%
-  summarise_all(list(availability = ~round(100*sum(!is.na(.))/nrow(data), 2),
-                    min = ~round(min(., na.rm = TRUE), 2),
-                    max = ~round(max(., na.rm = TRUE), 2)
-                    )) %>%
-  pivot_longer(
-    cols = names(.),
-    names_to = c("variable", "summary"),
-    names_sep = "_") %>%
-  pivot_wider(names_from = "summary", values_from = "value") %>%
-  arrange(desc(availability))
+availability <- get_physiology_variable_availability(data)
 
 # Writing the output out.
 wb <- loadWorkbook("output/01_output.xlsx")
@@ -158,34 +198,7 @@ theme_classic(admissions)
 ggsave("output/02_number_of_patients.png")
 
 ##### Also doing a plot of histograms of values.
-hist <-
-  data %>%
-  select(visit_detail_id, starts_with("min")) %>%
-  pivot_longer(cols = !visit_detail_id) %>%
-  filter(name != "min_paco2",
-         name != "min_sbp",
-         name != "min_dbp") %>%
-  ### Should really join this to the units in the dataset instead of hardcoding.
-  mutate(name = case_when(
-    name == "min_hr" ~ "Heart rate",
-    name == "min_bicarbonate" ~ "Bicarbonate mmol/L",
-    name == "min_creatinine" ~ "Creatinine mg/dL",
-    name == "min_map" ~ "Mean arterial pressure",
-    name == "min_fio2" ~ "FiO2",
-    name == "min_gcs" ~ "GCS",
-    name == "min_hematocrit" ~ "Hematocrit %",
-    name == "min_hr" ~ "Heart rate",
-    name == "min_paco2orig" ~ "PaCO2 mmHg",
-    name == "min_pao2" ~ "PaO2 mmHg",
-    name == "min_ph" ~ "pH",
-    name == "min_potassium" ~ "Potassium mmol/L",
-    name == "min_rr" ~ "Respiratory rate",
-    name == "min_sodium" ~ "Sodium mmol/L",
-    name == "min_temp" ~ "Temperature C",
-    name == "min_wcc" ~ "White cell count 10^9/L")) %>%
-  ggplot(aes(value)) +
-  geom_histogram() +
-  facet_wrap(~name, scales = "free")
+hist <- get_physiology_variable_distributions(data)
 custom_theme(hist)
 ggsave("output/03_variable_distributions.png")
 

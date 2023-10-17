@@ -1,4 +1,5 @@
 library(tidyverse)
+### Download from here. https://github.com/aasiyahrashan/SeverityScoresOMOP
 library(SeverityScoresOMOP)
 ## Download this from here. https://github.com/aasiyahrashan/TableOneDataframe
 library(TableOneDataframe)
@@ -7,9 +8,10 @@ library(readxl)
 library(googlesheets4)
 library(DBI)
 library(openxlsx)
+library(mice)
 
-start_date <- "2020-01-01"
-end_date <- "2023-07-31"
+start_date <- "2019-01-01"
+end_date <- "2022-12-31"
 output_path <- "."
 
 ### The 'secrets.R' file needs to include the following parameters for the OMOP database
