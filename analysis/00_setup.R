@@ -9,6 +9,8 @@ library(googlesheets4)
 library(DBI)
 library(openxlsx)
 library(mice)
+source("secrets.R")
+source("analysis/apache_ii_prob_function.R")
 
 start_date <- "2019-01-01"
 end_date <- "2022-12-31"
@@ -20,7 +22,6 @@ output_path <- "."
 # schema <- ""
 # user <- ""
 # password <- ""
-source("secrets.R")
 source("analysis/apache_ii_prob_function.R")
 source("analysis/smr_graph_functions.R")
 #source("analysis/01_analyis.R")
