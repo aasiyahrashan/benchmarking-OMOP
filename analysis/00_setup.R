@@ -9,6 +9,7 @@ library(googlesheets4)
 library(DBI)
 library(openxlsx)
 library(mice)
+library(lubridate)
 source("secrets.R")
 source("analysis/apache_ii_prob_function.R")
 

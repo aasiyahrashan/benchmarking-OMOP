@@ -30,7 +30,7 @@ clean_freetext_strings <- function(string_var){
 apply_ccaa_specific_exclusions <- function(data, output_path){
 
   all_implementation <- read_csv(glue("{output_path}/data/all_implementation.csv"))
-  all_implementation <-
+  all_implementation <- all_implementation %>%
     ### Only including valid registries
     filter(!is.na(`Unit ID`)) %>%
     filter(Registry %in% c("PRICE", "IRIS", "NICR", "Afghanistan",

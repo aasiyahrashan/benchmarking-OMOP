@@ -7,7 +7,7 @@ postgres_conn <- postgres_connect(host = host,
 
 ### Getting dataset of physiology variables
 data <- get_score_variables(postgres_conn, schema, start_date, end_date,
-                            0, 1, "CCAA", "APACHE II")
+                            0, 1, "./data/ccaa_concepts.csv", "APACHE II")
 
 ###### Getting care site and death data and merging with main dataset.
 raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
@@ -29,8 +29,15 @@ diag_data <- dbGetQuery(postgres_conn, raw_sql)
 
 dbDisconnect(postgres_conn)
 
+#### Making sure everyone has a diagnosis recorded in the OMOP dataset.
+missing_diag <- anti_join(data, diag_data,
+                          by = c("person_id", "visit_occurrence_id", "visit_detail_id"))
+if(nrow(missing_diag) > 1){
+  warning("There are patients in the OMOP dataset who do not have a diangosis recorded in the condition occurrence or procedure occurrence tables. Please check the 'missing_diag' dataset for more information")
+}
+
 ### This is a CCAA specific calculation of APACHE II coefficients.
-### It also get the primary diagnosis for a patient.
+###
 download_mapping_files(freetext_mapping_path, snomed_mapping_path, ap2_path, ap2_coefs_path,
                        implementation_asia_path, implementation_africa_path,
                        output_path)
@@ -46,28 +53,14 @@ save(diag_data, file = "data/02_diag_data.RData")
 load("data/01_orig_data.RData")
 load("data/02_diag_data.RData")
 
-# ###### Getting free text diagnoses unmapped to SNOMED for Usagi.
-# free_text <- diag_data %>%
-#   filter(grepl("^disorder1,*", diagnosis_name) |
-#          grepl("^operation1,*", diagnosis_name),
-#          diagnosis_concept_id == 0) %>%
-#   mutate(`Source term` = sub("^[^,]*,", "", diagnosis_name)) %>%
-#   mutate(`Source term` = str_trim(`Source term`),
-#          `Source term` = str_squish(`Source term`),
-#          `Source term` = tolower(`Source term`),
-#          `Source term` = str_replace_all(`Source term`, "[[:punct:]]", "")) %>%
-#   group_by(`Source term`) %>%
-#   summarise(frequency = n()) %>%
-#   filter(frequency ==1)
-#
-# write_csv(free_text, file ="data/03_unmapped_freetext.csv")
-
 ###### Applying exclusion critera.
 data <- apply_ccaa_specific_exclusions(data, output_path)
 
 data <- data %>%
   filter(age >=18) %>%
-  filter(!grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE)) %>%
+  ###### For other datasets, replace with diagnosis name.
+  filter(!grepl("*burn*", extracted_apache_diag, ignore.case = TRUE)) %>%
+  filter(!grepl("*burn*", extracted_snomed_diag, ignore.case = TRUE)) %>%
   # Calculating a few variables I need.
   mutate(icu_outcome = if_else(!is.na(death_datetime) &
                                  death_datetime > icu_admission_datetime &
@@ -89,9 +82,8 @@ data <- data %>%
 
 data <- calculate_apache_ii_score(data)
 ### Calculating apache II prob.
-### The 'coef_dataset' for the APACHE II prob calculation needs to contain patient ID and the corresponding apache II diagnosis coefficent.
-# 39, 269 missing diagnoses.
-data <- calculate_apache_ii_prob(data, coef_data)
+# 8, 486 missing diagnoses.
+data <- calculate_apache_ii_prob(data)
 
 ######################### Multiple imputation APACHE II score
 ######################### Using predictive mean matching to impute missing physiology values.
@@ -99,26 +91,34 @@ data <- calculate_apache_ii_prob(data, coef_data)
 ### As per 6.4, imputing physiology values instead of AP2 score or subscores so we don't lose the more granular information.
 ### As per chapter 6.3, deliberately including outcome variables as predictors for the imputation.
 
-#### TODO. CHECK the real data to see if min and max are always the same value.
-#### This will mean there was only one variable collected, so only one variable needs to be imputed.
-#### If not, both min and max need to be imputed.
+#### I've checked to make sure the min and max are sometimes different, and should therefore be imputed separately.
 #### TODO check other variable names and see if any of them can be included as predictor. Eg, comorbidities.
 
-# Defining APACHE II variables.
-apache <- c("max_temp", "min_temp", "min_wcc", "max_wcc",
-            "max_fio2", "min_paco2", "min_pao2", "min_hematocrit", "max_hematocrit",
-            "min_hr", "max_hr", "min_rr", "max_rr", "min_ph", "max_ph",
-            "min_bicarbonate", "max_bicarbonate", "min_sodium", "max_sodium",
-            "min_potassium", "max_potassium", "min_gcs", "min_creatinine",
-            "max_creatinine", "sbp_max", "sbp_min", "dbp_max", "dbp_min")
+# Defining APACHE II physiology variables.
+apache_vars <- c("max_temp", "min_temp", "min_wcc", "max_wcc",
+                  "max_fio2", "min_paco2", "min_pao2", "min_hematocrit", "max_hematocrit",
+                  "min_hr", "max_hr", "min_rr", "max_rr", "min_ph", "max_ph",
+                  "min_bicarbonate", "max_bicarbonate", "min_sodium", "max_sodium",
+                  "min_potassium", "max_potassium", "min_gcs", "min_creatinine",
+                  "max_creatinine", "max_sbp", "min_sbp", "max_dbp", "min_dbp",
+                  "count_comorbidity", "count_renal_failure", "count_emergency_admission")
 
 mice_data <- data %>%
-  select(person_id, age, gender, icu_outcome, icu_los, !!apache)
+  select(person_id, visit_occurrence_id, visit_detail_id,
+         age, gender, icu_outcome, icu_los, !!apache_vars, ap2_diag_coef)
 
-### Creating a predictor matrix and deliberately excluding the person_id variable as a predictor.
+### Creating a predictor matrix and deliberately excluding the person_id and diagnosis coefficent as a predictor.
 pred <- make.predictorMatrix(mice_data)
-pred['person_id'] <- 0
-mice_data <- mice(mice_data, pred=pred, m = 5, maxit = 1000,
+pred[, c('person_id', 'visit_occurrence_id',
+                 'visit_detail_id', 'count_comorbidity',
+                 'count_renal_failure', 'count_emergency_admission',
+                 'ap2_diag_coef')] <- 0
+pred[c('person_id', 'visit_occurrence_id',
+                 'visit_detail_id', 'count_comorbidity',
+                 'count_renal_failure', 'count_emergency_admission',
+                 'ap2_diag_coef'), ] <- 0
+
+mice_data <- mice(mice_data, pred=pred, m = 2, maxit = 10,
                   method = "pmm", seed = 100)
 
 ### Converting to long format containing all imputed datasets stacked on top of each other, then
@@ -127,8 +127,11 @@ mice_data <- mice(mice_data, pred=pred, m = 5, maxit = 1000,
 ### Using the long format is acceptable, since this is just a calclation of dervied variables per row, and there is no aggregation of results across rows.
 mice_long <- complete(mice_data, "long", include = TRUE)
 mice_long <- calculate_apache_ii_score(mice_long, imputation = "none")
-mice_long <- calculate_apache_ii_prob(mice_long, coef_data)
+mice_long <- calculate_apache_ii_prob(mice_long)
 mice_data <- as.mids(mice_long)
+
+save(mice_data, file = "data/03_mice.RData")
+load("data/03_mice_data.RData")
 
 ################# Calculating SMRs
 ##### For SMRs, summarising the data by care site ID
