@@ -325,17 +325,26 @@ get_apache_ii_coefficents <- function(data, output_path){
 
 #' Calculates APACHE II prob death
 #' @param data Dataset after the SeverityScoresOMOP::calculate_apache_ii_score() function has been run. Also after get_apache_ii_coefficents has been run. Assumes a variable called ap2_diag_coef is in the datset.
+#' @param imputation Determines the variable names the score and prob are stored in. Either 'normal' or 'none'.
 #' @import dplyr
 #' @import stringr
 #' @noRd
-calculate_apache_ii_prob <- function(data){
+calculate_apache_ii_prob <- function(data, imputation = 'normal'){
+
+  if(imputation == "normal"){
+    score_name <- "apache_ii_score"
+    prob_name <- "apache_ii_prob"
+  } else if (imputation == 'none'){
+    score_name <- "apache_ii_score_no_imputation"
+    prob_name <- "apache_ii_prob_no_imputation"
+  }
 
   # Now calculating prob mortality.
   data <- data %>%
     mutate(surgical_coef = if_else(emergency_admission == "Yes", 0.603, 0, 0),
-           logit_ap2 = -3.517 + (0.146*apache_ii_score) + ap2_diag_coef
+           logit_ap2 = -3.517 + (0.146*!!sym(score_name)) + ap2_diag_coef
            + surgical_coef,
-           apache_ii_prob = exp(logit_ap2)/(1 + exp(logit_ap2))) %>%
+           !!prob_name := exp(logit_ap2)/(1 + exp(logit_ap2))) %>%
     select(-c("surgical_coef", "logit_ap2"))
 
   data

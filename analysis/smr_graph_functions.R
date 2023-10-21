@@ -45,6 +45,7 @@ smr_graph <- function(by_split, unit_id, title ="", custom_colours){
     scale_linetype_manual(values = c("dashed", "solid"),
                           labels = c( "Mean SMR", "95% CI")) +
     labs(y = "SMR", x = 'Number of encounters') +
+    facet_wrap(~admission_year) %>%
     ggtitle(title)
 
   custom_theme(smr) +

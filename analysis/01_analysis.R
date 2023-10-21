@@ -85,6 +85,17 @@ data <- calculate_apache_ii_score(data)
 # 8, 486 missing diagnoses.
 data <- calculate_apache_ii_prob(data)
 
+################# Calculating SMRs
+##### For SMRs, summarising the data by care site ID
+by_care_site_ni <- data %>%
+  group_by(care_site_id, admission_year) %>%
+  summarise(total = sum(!is.na(person_id)),
+            # SMRs
+            expected_ap2 = median(apache_ii_prob, na.rm = TRUE)*total,
+            n_dead = sum(icu_outcome == "Dead" , na.rm = TRUE),
+            smr_ap2 = n_dead/expected_ap2) %>%
+  ungroup()
+
 ######################### Multiple imputation APACHE II score
 ######################### Using predictive mean matching to impute missing physiology values.
 ### Technique taken from this book. https://stefvanbuuren.name/fimd/sec-nutshell.html
@@ -104,19 +115,20 @@ apache_vars <- c("max_temp", "min_temp", "min_wcc", "max_wcc",
                   "count_comorbidity", "count_renal_failure", "count_emergency_admission")
 
 mice_data <- data %>%
-  select(person_id, visit_occurrence_id, visit_detail_id,
+  select(person_id, visit_occurrence_id, visit_detail_id, care_site_id, admission_year,
          age, gender, icu_outcome, icu_los, !!apache_vars, ap2_diag_coef)
 
-### Creating a predictor matrix and deliberately excluding the person_id and diagnosis coefficent as a predictor.
+### Removing the following variables from either being predicted, or being predictors.
 pred <- make.predictorMatrix(mice_data)
-pred[, c('person_id', 'visit_occurrence_id',
-                 'visit_detail_id', 'count_comorbidity',
-                 'count_renal_failure', 'count_emergency_admission',
-                 'ap2_diag_coef')] <- 0
-pred[c('person_id', 'visit_occurrence_id',
-                 'visit_detail_id', 'count_comorbidity',
-                 'count_renal_failure', 'count_emergency_admission',
-                 'ap2_diag_coef'), ] <- 0
+
+#### Removing the coef variable completely, since we don't want it imputed at all.
+pred <- pred[, -which(colnames(pred) %in% c('person_id', 'visit_occurrence_id',
+                                          'visit_detail_id', 'care_site_id', 'admission_year',
+                                          'ap2_diag_coef'))]
+
+pred <- pred[-which(rownames(pred) %in% c('person_id', 'visit_occurrence_id',
+                                            'visit_detail_id', 'care_site_id', 'admission_year',
+                                            'ap2_diag_coef')), ]
 
 mice_data <- mice(mice_data, pred=pred, m = 2, maxit = 10,
                   method = "pmm", seed = 100)
@@ -127,37 +139,54 @@ mice_data <- mice(mice_data, pred=pred, m = 2, maxit = 10,
 ### Using the long format is acceptable, since this is just a calclation of dervied variables per row, and there is no aggregation of results across rows.
 mice_long <- complete(mice_data, "long", include = TRUE)
 mice_long <- calculate_apache_ii_score(mice_long, imputation = "none")
-mice_long <- calculate_apache_ii_prob(mice_long)
+mice_long <- calculate_apache_ii_prob(mice_long, imputation = 'none')
 mice_data <- as.mids(mice_long)
 
 save(mice_data, file = "data/03_mice.RData")
 load("data/03_mice_data.RData")
 
-################# Calculating SMRs
-##### For SMRs, summarising the data by care site ID
-by_care_site <- data %>%
-  group_by(care_site_id) %>%
+#### Getting score and mortality probablity per patient. Just getting mean. Not completely sure if correct.
+mice_summary <- mice_long %>%
+  #### Don't want to include the original dataset
+  filter(.imp !=0) %>%
+  group_by(person_id, visit_occurrence_id, visit_detail_id, care_site_id, admission_year) %>%
+  summarise(apache_ii_score_no_imputation = mean(apache_ii_score_no_imputation),
+            apache_ii_prob_no_imputation = mean(apache_ii_prob_no_imputation, na.rm = TRUE))
+
+######### Calculating SMRs individually by imputed dataset, then using Rubin's rules to combine.
+by_care_site_mi <- mice_long %>%
+  group_by(.imp, care_site_id, admission_year) %>%
   summarise(total = sum(!is.na(person_id)),
             # SMRs
-            expected_ap2 = median(apache_ii_prob, na.rm = TRUE)*total,
+            expected_ap2 = median(apache_ii_prob_no_imputation, na.rm = TRUE)*total,
             n_dead = sum(icu_outcome == "Dead" , na.rm = TRUE),
             smr_ap2 = n_dead/expected_ap2) %>%
   ungroup()
 
-######### Creating table one. Dividing by gender because I have to divide by something. Not planning to use it.
+####### Now applying Rubin's rules to get CIs.
+####### Not done yet. Just getting the mean for the moment.
+#### Getting the mean over all imputed datasets as the point estimate.
+by_care_site_mi_mean <- by_care_site_mi %>%
+  group_by(care_site_id, admission_year) %>%
+  summarise(total = mean(total),
+            expected_ap2 = mean(expected_ap2),
+            n_dead = mean(n_dead),
+            smr_ap2 = mean(smr_ap2_mi))
+
+######### Creating table one.
 output <- make_output_df(data, "admission_year")
 output <- get_count(data, "admission_year", "person_id", "Number of patients", output)
 output <- get_unique_count(data, "admission_year", "care_site_id", "Number of sites", output)
 output <- get_median_iqr(data, "admission_year", 'age', "Age", output, round =1)
 output <- get_n_percent_value(data, 'admission_year', 'gender', "MALE", "Male", output, round =1)
 
-### Scores
+############## Normal imputation
 output <- get_median_iqr(data, "admission_year",
                          'apache_ii_score', "APACHE II score", output, round =1)
 output <- get_median_iqr(data, "admission_year", 'apache_ii_prob',
                          "APACHE II probability of mortality", output, round =1)
 
-#### SMR for APACHE II. Using the care site dataset.
+#### SMR. Using the care site dataset.
 #### Have to create the row separately and paste it to the output dataset.
 smr_row <-
   paste0(
@@ -166,6 +195,24 @@ smr_row <-
   round(quantile(by_care_site$smr_ap2, 0.75, na.rm = TRUE), 2), ")")
 
 smr_row <- c("APACHE II SMR Median (IQR)", smr_row, "", "")
+
+output <- rbind(output, smr_row)
+
+### Scores multiple imputation
+output <- get_median_iqr(mice_summary, "admission_year",
+                         'apache_ii_score_no_imputation', "APACHE II score MI", output, round =1)
+output <- get_median_iqr(data, "admission_year", 'apache_ii_prob_no_imputation',
+                         "APACHE II probability of mortality MI", output, round =1)
+
+#### SMR for APACHE II.
+#### Have to create the row separately and paste it to the output dataset.
+smr_row <-
+  paste0(
+    round(median(by_care_site_mi_mean$smr_ap2, na.rm = TRUE), 2), " (",
+    round(quantile(by_care_site_mi_mean$smr_ap2, 0.25, na.rm = TRUE), 2), " - ",
+    round(quantile(by_care_site_mi_mean$smr_ap2, 0.75, na.rm = TRUE), 2), ")")
+
+smr_row <- c("APACHE II SMR MI Median (IQR)", smr_row, "", "")
 
 output <- rbind(output, smr_row)
 
@@ -205,10 +252,14 @@ hist <- get_physiology_variable_distributions(data)
 custom_theme(hist)
 ggsave("output/03_variable_distributions.png")
 
-########## Funnel plot of SMRs.
+########## Funnel plot of SMRs NI.
 by_care_site <- by_care_site %>%
-  #### There are 15 sites with extremely high SMRs. Removing them so the rest of the graph is visible.
-  filter(smr_ap2 < 5)
 ## Drawing the funnel plot
 smr_graph(by_care_site)
-ggsave("output/04_funnel_plot.png")
+ggsave("output/04_funnel_plot_ni.png")
+
+########## Funnel plot of SMRs MI.
+by_care_site <- by_care_site %>%
+  ## Drawing the funnel plot
+  smr_graph(by_care_site)
+ggsave("output/05_funnel_plot_mi.png")
