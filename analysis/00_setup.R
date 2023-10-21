@@ -12,6 +12,7 @@ library(mice)
 library(lubridate)
 source("secrets.R")
 source("analysis/apache_ii_prob_function.R")
+source("analysis/smr_graph_functions.R")
 
 start_date <- "2019-01-01"
 end_date <- "2022-12-31"
@@ -23,6 +24,4 @@ output_path <- "."
 # schema <- ""
 # user <- ""
 # password <- ""
-source("analysis/apache_ii_prob_function.R")
-source("analysis/smr_graph_functions.R")
-#source("analysis/01_analyis.R")
+source("analysis/01_analyis.R")

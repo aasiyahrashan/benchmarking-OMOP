@@ -88,11 +88,15 @@ data <- calculate_apache_ii_prob(data)
 ################# Calculating SMRs
 ##### For SMRs, summarising the data by care site ID
 by_care_site_ni <- data %>%
-  group_by(care_site_id, admission_year) %>%
+  group_by(care_site_id, care_site_name, Registry,
+           `ICU Type`, `ICU Name`, admission_year) %>%
   summarise(total = sum(!is.na(person_id)),
             # SMRs
+            median_ap2_score = median(apache_ii_score, na.rm = TRUE),
+            median_ap2_prob = median(apache_ii_prob*100, na.rm = TRUE),
             expected_ap2 = median(apache_ii_prob, na.rm = TRUE)*total,
             n_dead = sum(icu_outcome == "Dead" , na.rm = TRUE),
+            percent_dead = 100*sum(icu_outcome == "Dead" , na.rm = TRUE)/total,
             smr_ap2 = n_dead/expected_ap2) %>%
   ungroup()
 
@@ -142,7 +146,7 @@ mice_long <- calculate_apache_ii_score(mice_long, imputation = "none")
 mice_long <- calculate_apache_ii_prob(mice_long, imputation = 'none')
 mice_data <- as.mids(mice_long)
 
-save(mice_data, file = "data/03_mice.RData")
+save(mice_data, file = "data/03_mice_data.RData")
 load("data/03_mice_data.RData")
 
 #### Getting score and mortality probablity per patient. Just getting mean. Not completely sure if correct.
@@ -151,10 +155,12 @@ mice_summary <- mice_long %>%
   filter(.imp !=0) %>%
   group_by(person_id, visit_occurrence_id, visit_detail_id, care_site_id, admission_year) %>%
   summarise(apache_ii_score_no_imputation = mean(apache_ii_score_no_imputation),
-            apache_ii_prob_no_imputation = mean(apache_ii_prob_no_imputation, na.rm = TRUE))
+            apache_ii_prob_no_imputation = mean(apache_ii_prob_no_imputation, na.rm = TRUE)) %>%
+  ungroup()
 
 ######### Calculating SMRs individually by imputed dataset, then using Rubin's rules to combine.
 by_care_site_mi <- mice_long %>%
+  filter(.imp !=0) %>%
   group_by(.imp, care_site_id, admission_year) %>%
   summarise(total = sum(!is.na(person_id)),
             # SMRs
@@ -171,7 +177,8 @@ by_care_site_mi_mean <- by_care_site_mi %>%
   summarise(total = mean(total),
             expected_ap2 = mean(expected_ap2),
             n_dead = mean(n_dead),
-            smr_ap2 = mean(smr_ap2_mi))
+            smr_ap2 = mean(smr_ap2)) %>%
+  ungroup()
 
 ######### Creating table one.
 output <- make_output_df(data, "admission_year")
@@ -188,40 +195,30 @@ output <- get_median_iqr(data, "admission_year", 'apache_ii_prob',
 
 #### SMR. Using the care site dataset.
 #### Have to create the row separately and paste it to the output dataset.
-smr_row <-
-  paste0(
-  round(median(by_care_site$smr_ap2, na.rm = TRUE), 2), " (",
-  round(quantile(by_care_site$smr_ap2, 0.25, na.rm = TRUE), 2), " - ",
-  round(quantile(by_care_site$smr_ap2, 0.75, na.rm = TRUE), 2), ")")
-
-smr_row <- c("APACHE II SMR Median (IQR)", smr_row, "", "")
-
-output <- rbind(output, smr_row)
+smr_ni_output <- make_output_df(by_care_site_ni, "admission_year")
+smr_ni_output <- get_median_iqr(by_care_site_ni, "admission_year",
+                                "smr_ap2", "APACHE II SMR Median (IQR)", smr_ni_output,  round = 2)
+names(smr_ni_output) <- names(output)
+output <- rbind(output, smr_ni_output[1, ])
 
 ### Scores multiple imputation
 output <- get_median_iqr(mice_summary, "admission_year",
                          'apache_ii_score_no_imputation', "APACHE II score MI", output, round =1)
-output <- get_median_iqr(data, "admission_year", 'apache_ii_prob_no_imputation',
+output <- get_median_iqr(mice_summary, "admission_year", 'apache_ii_prob_no_imputation',
                          "APACHE II probability of mortality MI", output, round =1)
 
 #### SMR for APACHE II.
-#### Have to create the row separately and paste it to the output dataset.
-smr_row <-
-  paste0(
-    round(median(by_care_site_mi_mean$smr_ap2, na.rm = TRUE), 2), " (",
-    round(quantile(by_care_site_mi_mean$smr_ap2, 0.25, na.rm = TRUE), 2), " - ",
-    round(quantile(by_care_site_mi_mean$smr_ap2, 0.75, na.rm = TRUE), 2), ")")
-
-smr_row <- c("APACHE II SMR MI Median (IQR)", smr_row, "", "")
-
-output <- rbind(output, smr_row)
+smr_mi_output <- make_output_df(by_care_site_mi_mean, "admission_year")
+smr_mi_output <- get_median_iqr(by_care_site_mi_mean, "admission_year",
+                                "smr_ap2", "APACHE II SMR Median (IQR)", smr_mi_output,  round = 2)
+names(smr_mi_output) <- names(output)
+output <- rbind(output, smr_mi_output[1, ])
 
 ### Outcomes
 output <- get_n_percent_value(data, 'admission_year', 'icu_outcome', "Dead", "ICU mortality",
                               output, round =1)
 output <- get_median_iqr(data, "admission_year", 'icu_los',
                          "ICU length of stay (Days)", output, round =1)
-
 
 # writing the output data frame to an excel file
 write.xlsx(output, file = "output/01_output.xlsx", borders = c("all"), colWidths = c("auto"),
@@ -253,13 +250,9 @@ custom_theme(hist)
 ggsave("output/03_variable_distributions.png")
 
 ########## Funnel plot of SMRs NI.
-by_care_site <- by_care_site %>%
-## Drawing the funnel plot
-smr_graph(by_care_site)
+smr_graph(by_care_site_ni, "CCAA APACHE II normal imputation")
 ggsave("output/04_funnel_plot_ni.png")
 
 ########## Funnel plot of SMRs MI.
-by_care_site <- by_care_site %>%
-  ## Drawing the funnel plot
-  smr_graph(by_care_site)
+smr_graph(by_care_site_mi_mean, "CCAA APACHE II multiple imputation")
 ggsave("output/05_funnel_plot_mi.png")
