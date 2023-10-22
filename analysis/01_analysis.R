@@ -52,7 +52,6 @@ save(diag_data, file = "data/02_diag_data.RData")
 ################ Starting data analysis.
 load("data/01_orig_data.RData")
 load("data/02_diag_data.RData")
-
 ###### Applying exclusion critera.
 data <- apply_ccaa_specific_exclusions(data, output_path)
 
@@ -184,14 +183,14 @@ by_care_site_mi_mean <- by_care_site_mi %>%
 output <- make_output_df(data, "admission_year")
 output <- get_count(data, "admission_year", "person_id", "Number of patients", output)
 output <- get_unique_count(data, "admission_year", "care_site_id", "Number of sites", output)
-output <- get_median_iqr(data, "admission_year", 'age', "Age", output, round =1)
-output <- get_n_percent_value(data, 'admission_year', 'gender', "MALE", "Male", output, round =1)
+output <- get_median_iqr(data, "admission_year", 'age', "Age", output, round =2)
+output <- get_n_percent_value(data, 'admission_year', 'gender', "MALE", "Male", output, round =2)
 
 ############## Normal imputation
 output <- get_median_iqr(data, "admission_year",
-                         'apache_ii_score', "APACHE II score", output, round =1)
+                         'apache_ii_score', "APACHE II score", output, round =2)
 output <- get_median_iqr(data, "admission_year", 'apache_ii_prob',
-                         "APACHE II probability of mortality", output, round =1)
+                         "APACHE II probability of mortality", output, round =2)
 
 #### SMR. Using the care site dataset.
 #### Have to create the row separately and paste it to the output dataset.
@@ -203,9 +202,9 @@ output <- rbind(output, smr_ni_output[1, ])
 
 ### Scores multiple imputation
 output <- get_median_iqr(mice_summary, "admission_year",
-                         'apache_ii_score_no_imputation', "APACHE II score MI", output, round =1)
+                         'apache_ii_score_no_imputation', "APACHE II score MI", output, round =2)
 output <- get_median_iqr(mice_summary, "admission_year", 'apache_ii_prob_no_imputation',
-                         "APACHE II probability of mortality MI", output, round =1)
+                         "APACHE II probability of mortality MI", output, round =2)
 
 #### SMR for APACHE II.
 smr_mi_output <- make_output_df(by_care_site_mi_mean, "admission_year")
@@ -216,9 +215,9 @@ output <- rbind(output, smr_mi_output[1, ])
 
 ### Outcomes
 output <- get_n_percent_value(data, 'admission_year', 'icu_outcome', "Dead", "ICU mortality",
-                              output, round =1)
+                              output, round =2)
 output <- get_median_iqr(data, "admission_year", 'icu_los',
-                         "ICU length of stay (Days)", output, round =1)
+                         "ICU length of stay (Days)", output, round =2)
 
 # writing the output data frame to an excel file
 write.xlsx(output, file = "output/01_output.xlsx", borders = c("all"), colWidths = c("auto"),
