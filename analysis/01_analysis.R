@@ -51,13 +51,14 @@ save(diag_data, file = "data/02_diag_data.RData")
 
 ################ Starting data analysis.
 load("data/01_orig_data.RData")
-load("data/02_diag_data.RData")
+
 ###### Applying exclusion critera.
 data <- apply_ccaa_specific_exclusions(data, output_path)
 
 data <- data %>%
   filter(age >=18) %>%
   ###### For other datasets, replace with diagnosis name.
+  ### Ensure this works for visit detail number 60186, person 59355.
   filter(!grepl("*burn*", extracted_apache_diag, ignore.case = TRUE)) %>%
   filter(!grepl("*burn*", extracted_snomed_diag, ignore.case = TRUE)) %>%
   # Calculating a few variables I need.
@@ -81,7 +82,6 @@ data <- data %>%
 
 data <- calculate_apache_ii_score(data)
 ### Calculating apache II prob.
-# 8, 486 missing diagnoses.
 data <- calculate_apache_ii_prob(data)
 
 ################# Calculating SMRs
@@ -106,7 +106,6 @@ by_care_site_ni <- data %>%
 ### As per chapter 6.3, deliberately including outcome variables as predictors for the imputation.
 
 #### I've checked to make sure the min and max are sometimes different, and should therefore be imputed separately.
-#### TODO check other variable names and see if any of them can be included as predictor. Eg, comorbidities.
 
 # Defining APACHE II physiology variables.
 apache_vars <- c("max_temp", "min_temp", "min_wcc", "max_wcc",
@@ -133,7 +132,7 @@ pred <- pred[-which(rownames(pred) %in% c('person_id', 'visit_occurrence_id',
                                             'visit_detail_id', 'care_site_id', 'admission_year',
                                             'ap2_diag_coef')), ]
 
-mice_data <- mice(mice_data, pred=pred, m = 2, maxit = 10,
+mice_data <- mice(mice_data, pred=pred, m = 30, maxit = 100,
                   method = "pmm", seed = 100)
 
 ### Converting to long format containing all imputed datasets stacked on top of each other, then
@@ -157,7 +156,7 @@ mice_summary <- mice_long %>%
             apache_ii_prob_no_imputation = mean(apache_ii_prob_no_imputation, na.rm = TRUE)) %>%
   ungroup()
 
-######### Calculating SMRs individually by imputed dataset, then using Rubin's rules to combine.
+######### Calculating SMRs individually by imputed dataset.
 by_care_site_mi <- mice_long %>%
   filter(.imp !=0) %>%
   group_by(.imp, care_site_id, admission_year) %>%
