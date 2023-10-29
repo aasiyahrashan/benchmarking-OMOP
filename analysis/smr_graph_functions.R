@@ -32,15 +32,14 @@ smr_graph <- function(by_split, title =""){
   max <- ceiling(max(by_split$expected, na.rm = T))
   max <- ifelse(!is.na(max) & !is.infinite(max), max, 10)
   ci <- data.frame(id=seq(1, max, 1)) %>%
-    mutate(lower_95 = ((qpois(0.025,lambda = id) - 0.975)/id)-(1-mean(by_split$smr, na.rm = T)),
-           upper_95 = ((qpois(0.975,lambda = id) - 0.025)/id)-(1-mean(by_split$smr, na.rm = T)))
+    mutate(lower_95 = ((qpois(0.025,lambda = id) - 0.975)/id),
+           upper_95 = ((qpois(0.975,lambda = id) - 0.025)/id))
 
   smr <- by_split %>%
     ggplot(aes(x=expected, y= smr)) +
     geom_point(size = 1.5) +
     scale_color_manual(values = c(custom_colours[2], custom_colours[5])) +
-    geom_line(aes(y=mean(smr, na.rm = T), linetype = "dashed"), color = custom_colours[1]) +
-    # geom_line(aes(y = 1, linetype = "dashed"), color = custom_colours[1]) +
+    geom_line(aes(y = 1, linetype = "dashed"), color = custom_colours[1]) +
     geom_line(data = ci, aes(x=id, y=lower_95, linetype = "solid"), color = custom_colours[1]) +
     geom_line(data = ci, aes(x=id, y=upper_95, linetype = "solid"), color = custom_colours[1]) +
     scale_linetype_manual(values = c("dashed", "solid"),
