@@ -1,5 +1,6 @@
 	select
 	p.person_id
+	, p.person_source_value -- for debugging only. Not required for the main analysis.
 	, vo.visit_occurrence_id
 	, vd.visit_detail_id
 	, COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date,
