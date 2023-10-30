@@ -47,6 +47,7 @@ smr_graph <- function(by_split, title =""){
     labs(y = "SMR", x = 'Expected number of deaths') +
     ggtitle(title) +
     facet_wrap(~admission_year)
+    # facet_wrap(~Registry)
 
   custom_theme(smr) +
     theme(legend.justification = 'center', legend.margin = margin(-5, 0, 0, 0),

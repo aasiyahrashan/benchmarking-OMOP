@@ -24,4 +24,6 @@ output_path <- "."
 # schema <- ""
 # user <- ""
 # password <- ""
-source("analysis/01_analyis.R")
+
+source("analysis/01_download_data_calculate_scores.R")
+source("analysis/02_calculate_smrs.R")
