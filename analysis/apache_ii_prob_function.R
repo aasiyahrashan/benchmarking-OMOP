@@ -1,4 +1,5 @@
-#' Remove special characters and spaces from a string variable to make it easier to join.
+#' Remove special characters and spaces from a
+#' string variable to make it easier to join.
 #' @param string_var string to be cleaned
 #' @import stringr
 #' @noRd
@@ -34,7 +35,7 @@ apply_ccaa_specific_exclusions <- function(data, output_path) {
         "Ethiopia"
       )
     ) %>%
-    ### Excluding wards, maternity units, emergency units, test units, 
+    ### Excluding wards, maternity units, emergency units, test units,
     # pediatric ICUs, neonatal ICUs, and HDUs.
     filter(!`ICU Type` %in% c("TEST", "WARD", "PEDIATRIC", "NEONATAL")) %>%
     filter(
@@ -98,7 +99,8 @@ download_mapping_files <-
       #### Getting implementation sheet data.
       asia <- implementation_asia_path %>%
         sheet_names() %>%
-        #### This removes the values from the vector above. Removing invalid registries and metadata sheets.
+        #### This removes the values from the vector above.
+        #### Removing invalid registries and metadata sheets.
         setdiff(
           c(
             "CCA",
@@ -130,7 +132,8 @@ download_mapping_files <-
 
       africa <- implementation_africa_path %>%
         sheet_names() %>%
-        #### This removes the values from the vector above. Removing invalid registries and metadata sheets
+        #### This removes the values from the vector above.
+        #### Removing invalid registries and metadata sheets
         setdiff(
           c(
             "Ethical approvals",
@@ -166,7 +169,7 @@ download_mapping_files <-
 
 
 #' Gets diagnosis coefficents for APACHE II probabilty of death calculation.
-#' @param data Dataset after get_diagnoses.sql query. The download_mapping_data 
+#' @param data Dataset after get_diagnoses.sql query. The download_mapping_data
 #'             function should also have been run.
 #' @param output_path file path data is written to
 #' @import dplyr
@@ -185,15 +188,15 @@ get_apache_ii_coefficents <- function(data, output_path) {
     ) %>%
     distinct(`Variable ID`, .keep_all = TRUE) %>%
     distinct(`Fully Specified Names (FSNs)`, .keep_all = TRUE)
-  
+
   ap2 <- read_csv(glue("{output_path}/data/ap2.csv")) %>%
     mutate(`APACHE IV diagnosis` = clean_string_to_join(`APACHE IV diagnosis`)) %>%
     distinct(`APACHE IV diagnosis`, .keep_all = TRUE)
-  
+
   ap2_coefs <-
     read_csv(glue("{output_path}/data/ap2_coefs.csv")) %>%
     mutate(name = clean_string_to_join(name))
-  
+
   #### Cleaning up the diagnosis name
   #### The source name has both variable and value. Getting value only.
   #### It's the section before the first comma.
@@ -218,9 +221,12 @@ get_apache_ii_coefficents <- function(data, output_path) {
       na_matches = "never"
     ) %>%
     left_join(snomed_mapping,
-              by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")) %>%
-    mutate(disorder_diagnosis =
-             clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))) %>%
+      by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")
+    ) %>%
+    mutate(
+      disorder_diagnosis =
+        clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))
+    ) %>%
     # Joining to APACHE II and cleaning up the diagnosis name
     left_join(
       ap2,
@@ -252,9 +258,12 @@ get_apache_ii_coefficents <- function(data, output_path) {
       na_matches = "never"
     ) %>%
     left_join(snomed_mapping,
-              by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")) %>%
-    mutate(operation_diagnosis =
-             clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))) %>%
+      by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")
+    ) %>%
+    mutate(
+      operation_diagnosis =
+        clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))
+    ) %>%
     # Joining to APACHE II and cleaning up the diagnosis name
     left_join(
       ap2,
@@ -296,11 +305,14 @@ get_apache_ii_coefficents <- function(data, output_path) {
   data <- data %>%
     distinct(person_id, visit_occurrence_id, visit_detail_id) %>%
     left_join(apache_iv,
-              by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
+      by = c("person_id", "visit_occurrence_id", "visit_detail_id")
+    ) %>%
     left_join(operation_1,
-              by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
+      by = c("person_id", "visit_occurrence_id", "visit_detail_id")
+    ) %>%
     left_join(disorder_1,
-              by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
+      by = c("person_id", "visit_occurrence_id", "visit_detail_id")
+    ) %>%
     mutate(
       primary_diagnosis_name =
         coalesce(
@@ -315,8 +327,9 @@ get_apache_ii_coefficents <- function(data, output_path) {
     ))) %>%
     # Getting the coefficients based on the diag string.
     left_join(ap2_coefs,
-              by = c("primary_diag_ap2" = "name"),
-              na_matches = "never") %>%
+      by = c("primary_diag_ap2" = "name"),
+      na_matches = "never"
+    ) %>%
     select(
       person_id,
       visit_occurrence_id,
@@ -330,7 +343,7 @@ get_apache_ii_coefficents <- function(data, output_path) {
 }
 
 #' Calculates APACHE II prob death
-#' @param data Dataset after the SeverityScoresOMOP::calculate_apache_ii_score() function has been run.
+#' @param data Dataset after running the calculate_apache_ii_score() function.
 #' @param coef_data Data after get_apache_ii_coefficents has been run.
 #' @import dplyr
 #' @import stringr
@@ -339,16 +352,19 @@ get_apache_ii_coefficents <- function(data, output_path) {
 calculate_apache_ii_prob <- function(data, coef_data) {
   data <-
     left_join(data,
-              coef_data,
-              by = c("person_id", "visit_occurrence_id",
-                     "visit_detail_id"))
+      coef_data,
+      by = c(
+        "person_id", "visit_occurrence_id",
+        "visit_detail_id"
+      )
+    )
 
   # Now calculating prob mortality.
   data <- data %>%
     mutate(
       surgical_coef = if_else(emergency_admission == "Yes", 0.603, 0, 0),
       logit_ap2 = -3.517 + (0.146 * apache_ii_score) + ap2_diag_coef
-      + surgical_coef,
+        + surgical_coef,
       apache_ii_prob = exp(logit_ap2) / (1 + exp(logit_ap2))
     ) %>%
     select(-c("surgical_coef", "logit_ap2"))
@@ -407,9 +423,12 @@ get_apache_ii_coefficents_NICE <- function(data, output_path) {
       na_matches = "never"
     ) %>%
     left_join(snomed_mapping,
-              by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")) %>%
-    mutate(disorder_diagnosis =
-             clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))) %>%
+      by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")
+    ) %>%
+    mutate(
+      disorder_diagnosis =
+        clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))
+    ) %>%
     # Joining to APACHE II and cleaning up the diagnosis name
     left_join(
       ap2,
@@ -441,9 +460,12 @@ get_apache_ii_coefficents_NICE <- function(data, output_path) {
       na_matches = "never"
     ) %>%
     left_join(snomed_mapping,
-              by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")) %>%
-    mutate(operation_diagnosis =
-             clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))) %>%
+      by = c("diagnosis_name_value_only" = "Fully Specified Names (FSNs)")
+    ) %>%
+    mutate(
+      operation_diagnosis =
+        clean_string_to_join(coalesce(Diagnosis.x, Diagnosis.y))
+    ) %>%
     # Joining to APACHE II and cleaning up the diagnosis name
     left_join(
       ap2,
@@ -485,11 +507,14 @@ get_apache_ii_coefficents_NICE <- function(data, output_path) {
   data <- data %>%
     distinct(person_id, visit_occurrence_id, visit_detail_id) %>%
     left_join(apache_iv,
-              by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
+      by = c("person_id", "visit_occurrence_id", "visit_detail_id")
+    ) %>%
     left_join(operation_1,
-              by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
+      by = c("person_id", "visit_occurrence_id", "visit_detail_id")
+    ) %>%
     left_join(disorder_1,
-              by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
+      by = c("person_id", "visit_occurrence_id", "visit_detail_id")
+    ) %>%
     mutate(
       primary_diagnosis_name =
         coalesce(
@@ -504,8 +529,9 @@ get_apache_ii_coefficents_NICE <- function(data, output_path) {
     ))) %>%
     # Getting the coefficients based on the diag string.
     left_join(ap2_coefs,
-              by = c("primary_diag_ap2" = "name"),
-              na_matches = "never") %>%
+      by = c("primary_diag_ap2" = "name"),
+      na_matches = "never"
+    ) %>%
     select(
       person_id,
       visit_occurrence_id,
