@@ -3,5 +3,5 @@ data/
 .Rproj.user
 output/
 .Rhistory
-secrets.R
+connection_parameters.R
 *_concepts.csv
