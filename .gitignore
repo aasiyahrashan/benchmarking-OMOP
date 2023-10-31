@@ -1,6 +1,7 @@
-secrets.R
 data/
 .Rproj*
 .Rproj.user
 output/
 .Rhistory
+secrets.R
+*_concepts.csv
