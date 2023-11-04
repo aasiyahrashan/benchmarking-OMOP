@@ -1,9 +1,19 @@
 ################# Calculating SMRs normal imputation
+################ Also getting information about number of missing values per patient
+apache_vars_for_missing <- c("min_temp", "min_wcc",
+                 "max_fio2", "min_pao2", "min_hematocrit",
+                 "min_hr", "min_rr", "min_ph",
+                 "min_bicarbonate", "min_sodium",
+                 "min_potassium", "min_gcs", "min_creatinine", "max_sbp", "max_dbp")
+
 smrs_ni <- data %>%
+  mutate(n_missing_ap2 =
+           rowSums(is.na(select(., all_of(apache_vars_for_missing))))) %>%
   group_by(care_site_id, care_site_name, Registry,
            `ICU Type`, `ICU Name`, admission_year) %>%
   summarise(total = sum(!is.na(person_id)),
             # SMRs
+            median_missing_vars = median(n_missing_ap2, na.rm = TRUE),
             median_ap2_score = median(apache_ii_score, na.rm = TRUE),
             median_ap2_prob = median(apache_ii_prob*100, na.rm = TRUE),
             expected_ap2 = median(apache_ii_prob, na.rm = TRUE)*total,
@@ -11,6 +21,12 @@ smrs_ni <- data %>%
             percent_dead = 100*sum(icu_outcome == "Dead" , na.rm = TRUE)/total,
             smr_ap2 = n_dead/expected_ap2) %>%
   ungroup()
+
+######### Plotting number of missing values against score for debugging.
+smrs_ni %>%
+  ggplot(aes(median_missing_vars, median_ap2_score)) +
+  geom_point()
+ggsave("output/06_scores_vs_missing.png")
 
 ############## Multiple imputation. Calculating score and probability, and SMRs.
 ##### Getting score and mortality probablity per patient. Just getting mean. Not completely sure if correct.
@@ -155,3 +171,16 @@ ggsave("output/04_funnel_plot_ni.png")
 ########## Funnel plot of SMRs MI.
 smr_graph(smrs_mi, "CCAA APACHE II multiple imputation")
 ggsave("output/05_funnel_plot_mi.png")
+
+###### Number of care sites.
+  data %>%
+  mutate(month = lubridate::floor_date(icu_admission_datetime, "month")) %>%
+    distinct(`Unit ID`, month) %>%
+  group_by(month) %>%
+  summarise(n = n()) %>%
+ggplot(aes(x = month, y = n)) +
+  geom_line() +
+  ylab("Sites per month") +
+  xlab("Date")
+# theme_classic(admissions)
+ggsave("output/07_number_of_sites_per_month.png")
