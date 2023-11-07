@@ -16,7 +16,7 @@ conn <- omop_connect(driver = driver,
                      user = user,
                      password = password)
 
-### Getting dataset of physiology variables
+### Getting data set of physiology variables
 data <-  get_score_variables(conn,
                              driver,
                              schema,
@@ -34,24 +34,36 @@ raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
        end_date   = end_date)
 outcome_data <- dbGetQuery(conn, raw_sql)
 
-data <- left_join(data,
-                  outcome_data,
-                  by = c("person_id",
-                         "visit_occurrence_id",
-                         "visit_detail_id",
-                         "icu_admission_datetime"))
+if(dim(data)[1] != 0 & !is.null(dim(data))) {
+  data <- left_join(data,
+                    outcome_data,
+                    by = c("person_id",
+                           "visit_occurrence_id",
+                           "visit_detail_id",
+                           "icu_admission_datetime"))
+}
 
 #### Getting diagnosis data. Query is saved in sql file.
-raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
+if (grep("SQL Server", driver, ignore.case = TRUE)) {
+  file_physiology_variables <-
+    "analysis/get_diagnoses_sql_server.sql"
+  } else {
+  file_physiology_variables <-
+  "analysis/get_diagnoses_sql_server.sql"
+  }
+
+raw_sql <- read_file (file_physiology_variables) %>%
   glue(schema     = schema,
        start_date = start_date,
        end_date   = end_date)
+
 #### Running the query
 diag_data <- dbGetQuery(conn, raw_sql)
 
 dbDisconnect(conn)
 
 ### This is a CCAA specific calculation of APACHE II coefficients.
+### TODO: add better if clause to CCAA specific calculation
 ### It also get the primary diagnosis for a patient.
 download_mapping_files(snomed_mapping_path,
                        ap2_path,
@@ -60,13 +72,15 @@ download_mapping_files(snomed_mapping_path,
                        implementation_africa_path,
                        output_path)
 
-### This dataset needs variables called primary_diagnosis_name and ap_diag_coef.
+### This data set needs the variables
+### 'primary_diagnosis_name' and 'ap_diag_coef'.
 coef_data <- get_apache_ii_coefficents(diag_data, output_path)
 data <- left_join(data,
                   coef_data,
                   by = c("person_id",
                          "visit_occurrence_id",
                          "visit_detail_id"))
+
 save(data,      file = "data/01_orig_data.RData")
 save(diag_data, file = "data/02_diag_data.RData")
 

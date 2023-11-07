@@ -8,29 +8,31 @@
 # Date of last edit: 2023-09-26
 # ------------------------------------------------------------------------------
 
-# Install github packages -------------------------------------------------
+# GitHub packages installing ----------------------------------------------
 if (!require("remotes")) install.packages("remotes")
-remotes::install_github("aasiyahrashan/TableOneDataframe")
-remotes::install_github("aasiyahrashan/SeverityScoresOMOP@nice")
+remotes::install_github("aasiyahrashan/TableOneDataframe", quiet = TRUE)
+# remotes::install_github("aasiyahrashan/SeverityScoresOMOP@nice", quiet = TRUE)
+
 
 # Library loading ---------------------------------------------------------
-library(SeverityScoresOMOP)
 library(TableOneDataframe)
+# library(SeverityScoresOMOP)
+library(tidy3verse)
 library(glue)
 
-# Define benchmark date range ---------------------------------------------
-start_date <- "2020-01-01"
-end_date <- "2023-07-31"
+devtools::load_all(glue("../SeverityScoresOMOP"))
+
+# Benchmark date range defining -------------------------------------------
+start_date <- "2019-01-01"
+end_date <- "2022-12-31"
 output_path <- "."
 
-# Create & Open registry-specific files -----------------------------------
-## Get all variables to do the analysis from 'secrets.R'.
-## If is is not filled in, it will open the file for you.
+# Registry-specific files creating & opening ------------------------------
+## Creates and opens a custom connection parameters file if nonexistent.
 conn_parr_path <- glue("{getwd()}/analysis/connection_parameters.R")
-if(!file.exists(secrets_path)) {
+if(!file.exists(conn_parr_path)) {
   example_path <- glue("{getwd()}/analysis/example_connection_parameters.R")
-  file.copy(from = example_path,
-            to = conn_parr_path)
+  file.copy(from = example_path, to = conn_parr_path)
   browseURL(conn_parr_path)
 }
 source("analysis/connection_parameters.R")
@@ -41,8 +43,7 @@ source("analysis/connection_parameters.R")
 concepts_path <- glue("{getwd()}/analysis/{dataset_name}_concepts.csv")
 if (!file.exists(concepts_path)) {
   example_path <- glue("{getwd()}/analysis/example_concepts.csv")
-  file.copy(from = example_path,
-            to = conn_parr_path)
+  file.copy(from = example_path, to = concepts_path)
   browseURL(concepts_path)
 }
 

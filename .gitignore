@@ -5,3 +5,4 @@ output/
 .Rhistory
 connection_parameters.R
 *_concepts.csv
+.RData
