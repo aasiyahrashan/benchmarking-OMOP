@@ -1,36 +1,36 @@
-﻿score,short_name,table,concept_id,omop_variable,concept_id_value,name_of_value,Note
-APACHE II,hr,Measurement,,value_as_number,,,
-APACHE II,rr,Measurement,,value_as_number,,,
-APACHE II,temp,Measurement,,value_as_number,,,
-APACHE II,wcc,Measurement,,value_as_number,,,
-APACHE II,sbp,Measurement,,value_as_number,,,Can also be 'map'. There's an extra calculation in the R code if 'sbp' and 'dbp' are used.
-APACHE II,dbp,Measurement,,value_as_number,,,
-APACHE II,fio2,Measurement,,value_as_number,,,
-APACHE II,pao2,Measurement,,value_as_number,,,
-APACHE II,paco2,Measurement,,value_as_number,,,
-APACHE II,hematocrit,Measurement,,value_as_number,,,
-APACHE II,ph,Measurement,,value_as_number,,,
-APACHE II,sodium,Measurement,,value_as_number,,,
-APACHE II,potassium,Measurement,,value_as_number,,,
-APACHE II,bicarbonate,Measurement,,value_as_number,,,
-APACHE II,creatinine,Measurement,,value_as_number,,,
-APACHE II,gcs_eye,Measurement,,value_as_concept_id,,,"Can also just be 'gcs' stored as a number. If stored as concept IDs like here, make sure the SQL file called 'gcs_if_stored_as_concept.sql' is accurate"
-APACHE II,gcs_motor,Measurement,,value_as_concept_id,,,
-APACHE II,gcs_verbal,Measurement,,value_as_concept_id,,,
-APACHE II,comorbidity,Observation,,value_as_concept_id,,AIDS,These are all possible options for comorbidites that match the apache conditions
-APACHE II,comorbidity,Observation,,value_as_concept_id,,"Hepatic disease, Moderate to severe",
-APACHE II,comorbidity,Observation,,value_as_concept_id,,"Renal failure, Moderate to severe",
-APACHE II,comorbidity,Observation,,value_as_concept_id,,"Respiratory disease, Severe moderate","Mapping error, should be fixed"
-APACHE II,comorbidity,Observation,,value_as_concept_id,,"Respiratory disease, Severe moderate","Mapping error, should be fixed"
-APACHE II,comorbidity,Observation,,value_as_concept_id,,Leukemia,
-APACHE II,comorbidity,Observation,,value_as_concept_id,,Lymphoma,
-APACHE II,comorbidity,Observation,,value_as_concept_id,,Metastatic cancer,
-APACHE II,comorbidity,Observation,,value_as_concept_id,,CKD requiring dialysis,
-APACHE II,comorbidity,Observation,,value_as_concept_id,,Cirrhosis,
-APACHE II,comorbidity,Observation,,value_as_concept_id,,GI bleeding,
-APACHE II,comorbidity,Observation,,value_as_concept_id,,Tumor,
-APACHE II,comorbidity,Observation,,value_as_concept_id,,Cerebrovascular disease,
-APACHE II,renal_failure,Observation,,value_as_concept_id,,"Renal failure, Mild",
-APACHE II,renal_failure,Observation,,value_as_concept_id,,"Renal failure, Moderate to severe",
-APACHE II,renal_failure,Observation,,value_as_concept_id,,CKD requiring dialysis,
-APACHE II,emergency_admission,Observation,,value_as_concept_id,,Emergency admission,
+score;short_name;table;concept_id;omop_variable;concept_id_value;name_of_value;Note
+APACHE II;hr;Measurement;;value_as_number;;Heart rate;
+APACHE II;rr;Measurement;;value_as_number;;Respiratory rate;
+APACHE II;temp;Measurement;;value_as_number;;Body temperature;
+APACHE II;wcc;Measurement;;value_as_number;;White blood cell count;
+APACHE II;sbp;Measurement;;value_as_number;;Systolic blood pressure;Short_name can also be 'map' for mean arterial blood pressure. There's an extra calculation in the R code if 'sbp' and 'dbp' are used.
+APACHE II;dbp;Measurement;;value_as_number;;Diastolic blood pressure;
+APACHE II;fio2;Measurement;;value_as_number;;Fraction of inspired oxygen ;
+APACHE II;pao2;Measurement;;value_as_number;;Partial pressure of oxygen in arterial blood;
+APACHE II;paco2;Measurement;;value_as_number;;Partial pressure of carbon dioxide in arterial blood;
+APACHE II;hematocrit;Measurement;;value_as_number;;Hematocrit in blood;
+APACHE II;ph;Measurement;;value_as_number;;Arterial  blood Ph;
+APACHE II;sodium;Measurement;;value_as_number;;Sodium in blood;
+APACHE II;potassium;Measurement;;value_as_number;;Potassium in blood;
+APACHE II;bicarbonate;Measurement;;value_as_number;;Bicarbonate in blood;
+APACHE II;creatinine;Measurement;;value_as_number;;Creatinine in blood;
+APACHE II;gcs_eye;Measurement;;value_as_concept_id;;Glasgow Coma Scale eye component;Can also just be 'gcs' stored as a number. If stored as concept IDs like here, make sure the SQL file called 'gcs_if_stored_as_concept.sql' is accurate
+APACHE II;gcs_motor;Measurement;;value_as_concept_id;;Glasgow Coma Scale motor component;
+APACHE II;gcs_verbal;Measurement;;value_as_concept_id;;Glasgow Coma Scale verbal component;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;AIDS;These are all possible options for comorbidites that match the apache conditions
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Hepatic disease, Moderate to severe;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Renal failure, Moderate to severe;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Respiratory disease, Severe moderate;Mapping error, should be fixed
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Respiratory disease, Severe moderate;Mapping error, should be fixed
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Leukemia;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Lymphoma;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Metastatic cancer;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;CKD requiring dialysis;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Cirrhosis;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;GI bleeding;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Tumor;
+APACHE II;comorbidity;Observation;;value_as_concept_id;;Cerebrovascular disease;
+APACHE II;renal_failure;Observation;;value_as_concept_id;;Renal failure, Mild;
+APACHE II;renal_failure;Observation;;value_as_concept_id;;Renal failure, Moderate to severe;
+APACHE II;renal_failure;Observation;;value_as_concept_id;;CKD requiring dialysis;
+APACHE II;emergency_admission;Observation;;value_as_concept_id;;Emergency admission;
