@@ -8,26 +8,24 @@
 # ------------------------------------------------------------------------------
 # Connecting to database with APACHE variables ----------------------------
 # The connection will be saved for further analysis.
-conn <- omop_connect(driver = driver,
-                     host = host,
-                     dbname = dbname,
-                     port = port,
-                     user = user,
+conn <- omop_connect(driver   = driver,
+                     host     = host,
+                     dbname   = dbname,
+                     port     = port,
+                     user     = user,
                      password = password)
 
 
 # Getting physiology variables data set -----------------------------------
-data <-  get_score_variables(conn, driver, schema,
-                             start_date, end_date,
-                             0, 1,
-                             concepts_path,
-                             "APACHE II")
+data <-  get_score_variables(conn, driver, schema, start_date, end_date,
+                             0, 1, concepts_path, "APACHE II")
 
 ###### Getting care site and death data and merging with main data set.
 raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
-  glue(schema     = schema,
-       start_date = start_date,
-       end_date   = end_date)
+  SqlRender::translate(tolower(driver)) %>%
+  SqlRender::render(schema     = schema,
+                    start_date = start_date,
+                    end_date   = end_date)
 
 outcome_data <- dbGetQuery(conn, raw_sql)
 data <- left_join(data,
@@ -39,19 +37,13 @@ data <- left_join(data,
 
 # Getting diagnosis data --------------------------------------------------
 # Query is saved in SQL file.
-if (grep("SQL Server", driver, ignore.case = TRUE)) {
-  sql_query_file <-
-    "analysis/get_diagnoses_sql_server.sql"
-} else {
-  sql_query_file <-
-    "analysis/get_diagnoses.sql"
-}
+raw_sql <- read_file ("analysis/get_diagnoses.sql") %>%
+  SqlRender::translate(tolower(driver)) %>%
+  SqlRender::render(dbname     = dbname,
+                    schema     = schema,
+                    start_date = start_date,
+                    end_date   = end_date)
 
-raw_sql <- read_file (sql_query_file) %>%
-  glue(dbname     = dbname,
-       schema     = schema,
-       start_date = start_date,
-       end_date   = end_date)
 
 #### Running the query
 diag_data <- dbGetQuery(conn, raw_sql)
@@ -175,11 +167,7 @@ by_care_site <- data %>%
 ######### Creating table one. Dividing by gender because I have to divide by
 ######### something. Not planning to use it.
 ######### data should include male or female only
-if (!is.factor(data$gender)){
-  data <- data %>%
-    filter(gender != "No matching concept")
-  data$gender <- factor(data$gender, labels = c("MALE", "FEMALE"))
-}
+  data <- data %>%  filter(gender != "No matching concept")
 output <- make_output_df(data, "gender")
 
 output <- get_count(data, "gender", "person_id", "Number of patients",

@@ -12,39 +12,39 @@
 if (!require("remotes")) install.packages("remotes")
 remotes::install_github("r-lib/conflicted")
 remotes::install_github("aasiyahrashan/TableOneDataframe", quiet = TRUE)
-# remotes::install_github("aasiyahrashan/SeverityScoresOMOP@nice", quiet = TRUE)
+remotes::install_github("aasiyahrashan/SeverityScoresOMOP", quiet = TRUE)
 if(!require("openxlsx")) install.packages("openxlsx")
 
 # Library loading ---------------------------------------------------------
 library(TableOneDataframe)
-# library(SeverityScoresOMOP)
+library(SeverityScoresOMOP)
 library(glue)
+library(SqlRender)
 library(tidyverse)
 conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag",    "dplyr")
 
-devtools::load_all(glue("../SeverityScoresOMOP"))
-
 # Benchmark date range defining -------------------------------------------
-start_date <- "2019-01-01"
-end_date <- "2023-01-01"
+start_date <- "'2019-01-01'"
+end_date <- "'2022-12-31'"
 output_path <- "."
 
-# Creating output folder --------------------------------------------------
+# Creating output folders -------------------------------------------------
 dir.create(glue("{getwd()}/output"))
+dir.create(glue("{getwd()}/data"))
 
 # Registry-customized files creating & opening ----------------------------
-## Creates and opens a custom connection parameters file if nonexistent.
+## Creates & opens a custom connection parameters file if nonexistent.
 conn_parr_path <- glue("{getwd()}/analysis/connection_parameters.R")
 if(!file.exists(conn_parr_path)) {
   example_path <- glue("{getwd()}/analysis/example_connection_parameters.R")
   file.copy(from = example_path, to = conn_parr_path)
   browseURL(conn_parr_path)
-  break
+  stop(glue("ERROR - fill in connection_parameters.R before rerunning"))
 }
 source("analysis/connection_parameters.R")
 
-## Creates and opens a custom *_concepts.csv file from example if nonexistent.
+## Creates & opens a custom *_concepts.csv file from example if nonexistent.
 ## Add standardized codes to it for look-up during APACHE II calculation.
 ## Be careful to not save with ";" but "," as separator!
 concepts_path <- glue("{getwd()}/analysis/{dataset_name}_concepts.csv")
@@ -52,7 +52,7 @@ if (!file.exists(concepts_path)) {
   example_path <- glue("{getwd()}/analysis/example_concepts.csv")
   file.copy(from = example_path, to = concepts_path)
   browseURL(concepts_path)
-  break
+  stop(glue("ERROR - fill in {dataset_name}_concepts.csv before rerunning"))
 }
 
 # Run benchmark analysis scripts ------------------------------------------
