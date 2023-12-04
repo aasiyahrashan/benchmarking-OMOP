@@ -1,3 +1,6 @@
+load("data/03_cleaned_filtered_data.RData")
+load("data/04_mice_data.RData")
+
 ################# Calculating SMRs normal imputation
 ################ Also getting information about number of missing values per patient
 apache_vars_for_missing <- c("min_temp", "min_wcc",
@@ -25,7 +28,8 @@ smrs_ni <- data %>%
 ######### Plotting number of missing values against score for debugging.
 smrs_ni %>%
   ggplot(aes(median_missing_vars, median_ap2_score)) +
-  geom_point()
+  geom_point(aes(colour = Registry)) +
+  theme_classic()
 ggsave("output/06_scores_vs_missing.png")
 
 ############## Multiple imputation. Calculating score and probability, and SMRs.
@@ -46,6 +50,7 @@ smrs_mi <- mice_long %>%
             # SMRs
             expected_ap2 = median(apache_ii_prob_no_imputation, na.rm = TRUE)*total,
             n_dead = sum(icu_outcome == "Dead" , na.rm = TRUE),
+            percent_dead = 100*sum(icu_outcome == "Dead" , na.rm = TRUE)/total,
             smr_ap2 = n_dead/expected_ap2) %>%
 ####### Now applying Rubin's rules to get CIs.
 ####### Not done yet. Just getting the mean for the moment.
@@ -60,13 +65,13 @@ smrs_mi <- mice_long %>%
 
 ### Deciding if sites contributed data each month or not month, or not by comparing number of admissions over time.
 ### This decides whether or not a site should contribute to the annual SMRs on the funnel plots, and in the graphs.
-patients_per_month_care_site <-
+patients_per_month_care_site_non_summarised <-
   data %>%
   mutate(care_site_id_fac = factor(care_site_id),
          admission_year = factor(lubridate::year(icu_admission_datetime)),
          admission_month = factor(lubridate::month(icu_admission_datetime))) %>%
   group_by(care_site_id_fac,
-           care_site_id, admission_year, admission_month, .drop=FALSE) %>%
+           Registry, care_site_id, admission_year, admission_month, .drop=FALSE) %>%
   summarize(n_admissions = n()) %>%
   arrange(care_site_id, admission_year, admission_month) %>%
   group_by(care_site_id) %>%
@@ -81,16 +86,34 @@ patients_per_month_care_site <-
              n_admissions <5  ~ FALSE,
              percent_change_last_month < -80 ~ FALSE,
              percent_change_next_month < -80 ~ FALSE,
-             TRUE ~ TRUE)) %>%
-  group_by(care_site_id, admission_year) %>%
+             TRUE ~ TRUE),
+         date = as.Date(paste0(as.character(admission_year), "-", as.character(admission_month), "-", "01")))
+
+# #### Plotting and saving graph of percentage increase and decrease in contributions per site.
+p <- patients_per_month_care_site_non_summarised %>%
+  filter(!is.na(percent_change_last_month) & percent_change_last_month != -Inf & percent_change_last_month !=Inf) %>%
+  filter(percent_change_last_month < 0)
+#   mutate(percent_change_last_month = if_else(percent_change_last_month > 200, 200, percent_change_last_month)) %>%
+# ggplot(aes(x = date, y = percent_change_last_month)) +
+#   geom_line(aes(group = as.character(care_site_id))) +
+#   facet_wrap(~Registry)
+
+  patients_per_month_care_site <-
+  patients_per_month_care_site_non_summarised %>%
+  group_by(Registry, care_site_id, admission_year) %>%
   summarise(months_contributed_in_year = sum(contributed))
 
 #### Filtering out SMRs with fewer than 6 months of contribution.
 ### This is based on the ICNARC report. https://www.google.com/url?q=https://onlinereports.icnarc.org/Reports/2019/12/annual-quality-report-201819-for-adult-critical-care&sa=D&source=docs&ust=1698589035706375&usg=AOvVaw3Zu-zA_qy5M02R9HGsMLZP
 smrs_ni <- left_join(smrs_ni,
                      patients_per_month_care_site,
-            by = c("care_site_id", "admission_year")) %>%
-  filter(months_contributed_in_year >=6)
+            by = c("Registry", "care_site_id", "admission_year")) %>%
+  filter(months_contributed_in_year >=6 | (months_contributed_in_year >=3 & admission_year == 2019))
+
+smrs_mi <- left_join(smrs_mi,
+                     patients_per_month_care_site,
+                     by = c("care_site_id", "admission_year")) %>%
+  filter(months_contributed_in_year >=6 | (months_contributed_in_year >=3 & admission_year == 2019))
 
 ##################################################################################################
 ##################### Creating tables and graphs
@@ -156,7 +179,7 @@ admissions <-
   geom_line(stat = "count") +
   ylab("Patients per month") +
   xlab("Date")
-theme_classic(admissions)
+# theme_classic(admissions)
 ggsave("output/02_number_of_patients.png")
 
 ##### Also doing a plot of histograms of values.
@@ -166,10 +189,12 @@ ggsave("output/03_variable_distributions.png")
 
 ########## Funnel plot of SMRs NI.
 smr_graph(smrs_ni, "CCAA APACHE II normal imputation")
+smr_graph_colour_registry(smrs_ni, "CCAA APACHE II normal imputation")
 ggsave("output/04_funnel_plot_ni.png")
 
 ########## Funnel plot of SMRs MI.
 smr_graph(smrs_mi, "CCAA APACHE II multiple imputation")
+smr_graph_colour_registry(smrs_mi, "CCAA APACHE II multiple imputation")
 ggsave("output/05_funnel_plot_mi.png")
 
 ###### Number of care sites.
@@ -184,3 +209,5 @@ ggplot(aes(x = month, y = n)) +
   xlab("Date")
 # theme_classic(admissions)
 ggsave("output/07_number_of_sites_per_month.png")
+
+write_csv(smrs_mi, "output/smrs_mi.csv")

@@ -84,6 +84,8 @@ data <- calculate_apache_ii_score(data)
 ### Calculating apache II prob.
 data <- calculate_apache_ii_prob(data)
 
+save(data, file = "data/03_cleaned_filtered_data.RData")
+
 ######################### Multiple imputation APACHE II score
 ######################### Using predictive mean matching to impute missing physiology values.
 ### Technique taken from this book. https://stefvanbuuren.name/fimd/sec-nutshell.html
@@ -108,7 +110,8 @@ mice_data <- data %>%
 ### Removing the following variables from either being predicted, or being predictors.
 pred <- make.predictorMatrix(mice_data)
 
-#### Removing the coef variable completely, since we don't want it imputed at all.
+#### Removing variables from the prediction.
+#### TODO - Include ICU as a categorical predictor variable.
 pred <- pred[, -which(colnames(pred) %in% c('person_id', 'visit_occurrence_id',
                                           'visit_detail_id', 'care_site_id', 'admission_year',
                                           'ap2_diag_coef'))]
@@ -129,4 +132,4 @@ mice_long <- calculate_apache_ii_score(mice_long, imputation = "none")
 mice_long <- calculate_apache_ii_prob(mice_long, imputation = 'none')
 mice_data <- as.mids(mice_long)
 
-save(mice_data, file = "data/03_mice_data.RData")
+save(mice_data, file = "data/04_mice_data.RData")
