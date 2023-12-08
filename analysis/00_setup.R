@@ -11,8 +11,8 @@
 # GitHub packages installing ----------------------------------------------
 if (!require("remotes")) install.packages("remotes")
 remotes::install_github("r-lib/conflicted")
-remotes::install_github("aasiyahrashan/TableOneDataframe", quiet = TRUE)
-remotes::install_github("aasiyahrashan/SeverityScoresOMOP", quiet = TRUE)
+remotes::install_github("aasiyahrashan/TableOneDataframe")
+#remotes::install_github("aasiyahrashan/SeverityScoresOMOP@nice")
 if(!require("openxlsx")) install.packages("openxlsx")
 
 # Library loading ---------------------------------------------------------
@@ -24,6 +24,8 @@ library(tidyverse)
 conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag",    "dplyr")
 
+devtools::load_all(glue("../SeverityScoresOMOP"))
+
 # Benchmark date range defining -------------------------------------------
 start_date <- "'2019-01-01'"
 end_date <- "'2022-12-31'"
@@ -33,16 +35,23 @@ output_path <- "."
 dir.create(glue("{getwd()}/output"))
 dir.create(glue("{getwd()}/data"))
 
-# Registry-customized files creating & opening ----------------------------
+# Checking Pre-requisites -------------------------------------------------
+## Registry-customized files creating & opening
 ## Creates & opens a custom connection parameters file if nonexistent.
 conn_parr_path <- glue("{getwd()}/analysis/connection_parameters.R")
-if(!file.exists(conn_parr_path)) {
+if (!file.exists(conn_parr_path)) {
   example_path <- glue("{getwd()}/analysis/example_connection_parameters.R")
   file.copy(from = example_path, to = conn_parr_path)
   browseURL(conn_parr_path)
-  stop(glue("ERROR - fill in connection_parameters.R before rerunning"))
+  stop("Error: fill in connection_parameters.R before rerunning")
 }
+
 source("analysis/connection_parameters.R")
+if(!dialect %in% listSupportedDialects()$dialect){
+  stop(glue("Your dialect ({dialect}) is not recognized by SQLRender, please",
+            "resubmit your dialect as one of the following:",
+            "\n{toString(listSupportedDialects()$dialect)}"))
+}
 
 ## Creates & opens a custom *_concepts.csv file from example if nonexistent.
 ## Add standardized codes to it for look-up during APACHE II calculation.

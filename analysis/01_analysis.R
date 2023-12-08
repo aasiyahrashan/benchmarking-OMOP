@@ -17,12 +17,12 @@ conn <- omop_connect(driver   = driver,
 
 
 # Getting physiology variables data set -----------------------------------
-data <-  get_score_variables(conn, driver, schema, start_date, end_date,
+data <-  get_score_variables(conn, dialect, schema, start_date, end_date,
                              0, 1, concepts_path, "APACHE II")
 
 ###### Getting care site and death data and merging with main data set.
 raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
-  SqlRender::translate(tolower(driver)) %>%
+  SqlRender::translate(tolower(dialect)) %>%
   SqlRender::render(schema     = schema,
                     start_date = start_date,
                     end_date   = end_date)
@@ -38,7 +38,7 @@ data <- left_join(data,
 # Getting diagnosis data --------------------------------------------------
 # Query is saved in SQL file.
 raw_sql <- read_file ("analysis/get_diagnoses.sql") %>%
-  SqlRender::translate(tolower(driver)) %>%
+  SqlRender::translate(tolower(dialect)) %>%
   SqlRender::render(dbname     = dbname,
                     schema     = schema,
                     start_date = start_date,
@@ -167,7 +167,10 @@ by_care_site <- data %>%
 ######### Creating table one. Dividing by gender because I have to divide by
 ######### something. Not planning to use it.
 ######### data should include male or female only
-  data <- data %>%  filter(gender != "No matching concept")
+  data <- data %>%
+    filter(gender != "No matching concept") %>%
+    mutate_at("gender", factor)
+
 output <- make_output_df(data, "gender")
 
 output <- get_count(data, "gender", "person_id", "Number of patients",
