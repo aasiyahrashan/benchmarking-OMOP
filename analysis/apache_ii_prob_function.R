@@ -1,4 +1,33 @@
-#' Remove special characters and spaces from a string variable to make it easier to join.
+#' NICE specific patient apache exclusion
+#'
+#' This is done based on a boolean flag
+#'
+#' @param conn A connection object to a database
+#' @param data data in which the exclusion needs to be executed
+#'
+#' @import DBI
+#' @import dplyr
+#' @import glue
+#' @export
+apply_nice_specific_exclusions <- function(conn, data) {
+  raw_sql <- glue(
+    "SELECT o.person_id
+            ,o.visit_occurrence_id
+            ,o.visit_detail_id
+    FROM NICEOMOP.omop.observation o
+    WHERE o.observation_datetime >= '2019-01-01'
+		AND o.observation_datetime <= '2023-01-01'
+		AND observation_concept_id = 2000000014")
+
+  nice_apache_exclusions_dataset <- dbGetQuery(conn, raw_sql)
+  anti_join(data, nice_apache_exclusions_dataset,
+            by = c("person_id",
+                   "visit_occurrence_id",
+                   "visit_detail_id"))
+}
+
+#' Remove special characters and spaces from a string variable to make it
+#' easier to join.
 #' @param string_var string to be cleaned
 #' @import stringr
 #' @noRd
@@ -13,7 +42,8 @@ clean_string_to_join <- function(string_var){
 }
 
 
-#' Remove special characters and spaces from a string variable to make it easier to join.
+#' Remove special characters and spaces from a string variable to make it
+#' easier to join.
 #' @param string_var string to be cleaned
 #' @import stringr
 #' @noRd
@@ -36,8 +66,8 @@ apply_ccaa_specific_exclusions <- function(data, output_path){
     filter(Registry %in% c("PRICE", "IRIS", "NICR", "Afghanistan",
                            "Malaysia", "Bangladesh", "Kenya", "Uganda", "Ghana",
                            "Sierra Leone", "South Africa", "Ethiopia")) %>%
-    ### Excluding test units, wards, pediatric and neonatal ICUs, HDUs, maternity units,
-    # emergency unit.
+    ### Excluding test units, wards, pediatric and neonatal ICUs, HDUs,
+    # maternity units, emergency unit.
     filter(!`ICU Type` %in% c("TEST", "WARD", "PEDIATRIC", "NEONATAL")) %>%
     filter(!grepl("*PICU*", `ICU Name`, ignore.case=TRUE),
            !grepl("*Pediatric*", `ICU Name`, ignore.case=TRUE),
@@ -56,7 +86,8 @@ apply_ccaa_specific_exclusions <- function(data, output_path){
            !grepl("EU", `ICU Name`, ignore.case=TRUE),
            !grepl("ED", `ICU Name`, ignore.case=TRUE))
 
-  #### Joining to the main dataset so only patients admitted to allowed units are included.
+  ## Joining to the main dataset so only patients admitted to allowed units
+  # are included.
   data <- data %>%
     mutate(`Unit ID` = gsub( " .*$", "", care_site_name)) %>%
     inner_join(all_implementation, by = "Unit ID")
@@ -79,7 +110,7 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
                  glue("{output_path}/data/all_implementation.csv"))
 
   if(any(files_dont_exist)){
-      googlesheets4::gs4_auth(email = "*@nicslk.com")
+    googlesheets4::gs4_auth(email = "*@nicslk.com")
 
     # Downloading data and saving it to csv.
     print("Downloading mapping data")
@@ -98,7 +129,8 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
     #### Getting implementation sheet data.
     asia <- implementation_asia_path %>%
       sheet_names() %>%
-      #### This removes the values from the vector above. Removing invalid registries and metadata sheets.
+      #### This removes the values from the vector above.
+      # Removing invalid registries and metadata sheets.
       setdiff(c("CCA", "NICS", "Demo", "sheet",
                 "weekly validation", "Live Sites Contacts", "Troubleshooting",
                 "Sheet9", "check list ", "expenses", "Philippines", "Sri Lanka",
@@ -110,7 +142,8 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
 
     africa <- implementation_africa_path %>%
       sheet_names() %>%
-      #### This removes the values from the vector above. Removing invalid registries and metadata sheets
+      ## This removes the values from the vector above. Removing invalid
+      ## registries and metadata sheets
       setdiff(c("Ethical approvals", "All GECO", "NICS", "weekly validation",
                 "Live Sites Contacts", "Troubleshooting",
                 "Sheet9", "check list ", "expenses", "Tasks for Madiha",
@@ -120,15 +153,18 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
                select(`Hospital name`, `ICU Name`, `Unit ID`, `ICU Type`),
              .id = "Registry")
 
-      rbind(asia, africa) %>%
+    rbind(asia, africa) %>%
       write_csv(file = glue("{output_path}/data/all_implementation.csv"))
   }
 }
 
 #' Extracting the primary or all apache iv diagnosis and snomed diagnosis
-#' This function will give 3 columns named primary_apache, extracted_snomed_diag and extracted_snomed_code
-#' For 'primary' diagnosis type, if diagnosis was entered as apache iv, then primary_apache captures it
-#' Else extracted_snomed_diag and extracted_snomed_code were extracted from snomed operations and disorders
+#' This function will give 3 columns named primary_apache, extracted_snomed_diag
+#' and extracted_snomed_code
+#' For 'primary' diagnosis type, if diagnosis was entered as apache iv, then
+#' primary_apache captures it
+#' Else extracted_snomed_diag and extracted_snomed_code were extracted from
+#' snomed operations and disorders
 #' @param data admission dataset
 #' @import dplyr
 #' @noRd
@@ -136,7 +172,8 @@ extract_snomed_and_apache_diagnosis <- function(data){
 
   ### First making the snomed code missing if it's mapped to 0.
   data <- data %>%
-    mutate(concept_code = if_else(concept_code == "No matching concept", NA,  concept_code))
+    mutate(concept_code = if_else(concept_code == "No matching concept",
+                                  NA,  concept_code))
 
   disorder_1 <- data %>%
     ### Only getting diagnoses that have a snomed vocabulary ID
@@ -165,9 +202,12 @@ extract_snomed_and_apache_diagnosis <- function(data){
 
   data <- data %>%
     distinct(person_id, visit_occurrence_id, visit_detail_id) %>%
-    left_join(apache_iv, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
-    left_join(operation_1, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
-    left_join(disorder_1, by = c("person_id", "visit_occurrence_id", "visit_detail_id")) %>%
+    left_join(apache_iv, by = c("person_id", "visit_occurrence_id",
+                                "visit_detail_id")) %>%
+    left_join(operation_1, by = c("person_id", "visit_occurrence_id",
+                                  "visit_detail_id")) %>%
+    left_join(disorder_1, by = c("person_id", "visit_occurrence_id",
+                                 "visit_detail_id")) %>%
     ### Picking the correct SNOMED name if available.
     mutate(extracted_snomed_diag = case_when(
       !is.na(extracted_snomed_diag_op) ~ extracted_snomed_diag_op,
@@ -176,19 +216,26 @@ extract_snomed_and_apache_diagnosis <- function(data){
       !is.na(extracted_snomed_diag_op)  ~ extracted_snomed_code_op,
       !is.na(extracted_snomed_diag_dis) ~ extracted_snomed_code_dis)) %>%
     #### Cleaning the diangnosis names to remove names of the variables.
-    #### The substitution removes everything up to and including the first comma, and also any space after it.
-    mutate(extracted_snomed_diag = sub("^[^,]*,\\s*", "", extracted_snomed_diag)) %>%
-    mutate(extracted_apache_diag = sub("^[^,]*,\\s*", "", extracted_apache_diag)) %>%
-    #### Running this substitution twice for the APACHE variables since the system is appended at the beginning separated by a comma.
+    #### The substitution removes everything up to and including the first comma,
+    ## and also any space after it.
+    mutate(extracted_snomed_diag =
+             sub("^[^,]*,\\s*", "", extracted_snomed_diag)) %>%
+    mutate(extracted_apache_diag =
+             sub("^[^,]*,\\s*", "", extracted_apache_diag)) %>%
+    ## Running this substitution twice for the APACHE variables since the
+    # system is appended at the beginning separated by a comma.
     mutate(extracted_apache_diag = sub("^[^,]*,\\s*", "", extracted_apache_diag))
 
   data
 }
 
 
-#' Extracts the releveant snomed diagnosis and snomed code for the diagnosis entered as freetext
-#' @param admission_data admission_data that contains snomed_diag and snomed_code columns
-#' @param output_path path to the folder containing dataset of freetexts and relevant snomed codes
+#' Extracts the releveant snomed diagnosis and snomed code for the
+#' diagnosis entered as freetext
+#' @param admission_data admission_data that contains snomed_diag and
+#' snomed_code columns
+#' @param output_path path to the folder containing dataset of freetexts
+#' and relevant snomed codes
 #' @import dplyr
 #' @noRd
 freetext_mapping_to_snomed <- function(admission_data, output_path){
@@ -196,27 +243,32 @@ freetext_mapping_to_snomed <- function(admission_data, output_path){
   freetext_mapped <- read_csv(glue("{output_path}/data/freetext_to_snomed.csv"))
 
   admission_data <- admission_data %>%
-    mutate(extracted_snomed_diag = if_else(is.na(extracted_snomed_code),
-                                           clean_freetext_strings(extracted_snomed_diag),
-                                           extracted_snomed_diag)) %>%
+    extracted_snomed_diag = if_else(is.na(extracted_snomed_code),
+                                    clean_freetext_strings(extracted_snomed_diag),
+                                    extracted_snomed_diag)) %>%
     left_join(freetext_mapped, by = c("extracted_snomed_diag" = "sourceName")) %>%
     distinct(person_id, visit_occurrence_id, visit_detail_id,
              extracted_snomed_diag, .keep_all = TRUE) %>%
     mutate(extracted_snomed_diag = if_else(is.na(extracted_snomed_code) &
                                              !is.na(`SNOMED code`) &
-                                             mappingStatus != "FLAGGED", targetConceptName,
-                                           extracted_snomed_diag, extracted_snomed_diag),
+                                             mappingStatus != "FLAGGED",
+                                           targetConceptName,
+                                           extracted_snomed_diag,
+                                           extracted_snomed_diag),
            extracted_snomed_code = if_else(is.na(extracted_snomed_code) &
                                              !is.na(`SNOMED code`) &
-                                             mappingStatus != "FLAGGED", as.character(`SNOMED code`),
-                                           extracted_snomed_code, extracted_snomed_code)) %>%
+                                             mappingStatus != "FLAGGED",
+                                           as.character(`SNOMED code`),
+                                           extracted_snomed_code,
+                                           extracted_snomed_code)) %>%
     select(-setdiff(names(freetext_mapped), c("sourceName")))
 
   admission_data
 }
 
 #' Maps the snomed diagnosis to APACHE IV
-#' @param admission_data Needs to have extracted_apache_diag and extracted_snomed_code
+#' @param admission_data Needs to have extracted_apache_diag
+#' and extracted_snomed_code
 #' #' @param output_path file path reports and data is written to
 #' @import dplyr
 #' @import stringr
@@ -225,8 +277,9 @@ freetext_mapping_to_snomed <- function(admission_data, output_path){
 snomed_to_apache_iv_mapping <- function(admission_data, output_path){
   # Reading in the snomed to apache iv mapping sheets.
   snomed_mapping <- read_csv(glue("{output_path}/data/snomed_ap4.csv")) %>%
-    mutate(`Variable ID` = as.character(`Variable ID`),
-           `Fully Specified Names (FSNs)` = clean_string_to_join(`Fully Specified Names (FSNs)`)) %>%
+    mutate(
+      `Variable ID` = as.character(`Variable ID`),
+      `Fully Specified Names (FSNs)` = clean_string_to_join(`Fully Specified Names (FSNs)`)) %>%
     distinct(`Variable ID`, .keep_all = TRUE)
 
   admission_data <- admission_data %>%
@@ -257,9 +310,11 @@ apache_iv_to_apache_ii_mapping <- function(admission_data, output_path){
   admission_data <- admission_data %>%
     mutate(apache_iv_cleaned = clean_string_to_join(apache_iv_diag)) %>%
     # Joining to APACHE II and cleaning up the diagnosis name
-    left_join(ap2, by = c("apache_iv_cleaned" = "APACHE IV diagnosis"), na_matches = "never") %>%
+    left_join(ap2, by = c("apache_iv_cleaned" = "APACHE IV diagnosis"),
+              na_matches = "never") %>%
     rename(apache_ii_diag = `APACHE II`) %>%
-    select(-setdiff(names(ap2), c("APACHE IV diagnosis", "APACHE II")), -apache_iv_cleaned)
+    select(-setdiff(names(ap2), c("APACHE IV diagnosis", "APACHE II")),
+           -apache_iv_cleaned)
 
   admission_data
 }
@@ -284,48 +339,76 @@ apache_ii_to_coefficient_mapping <- function(admission_data, output_path){
     left_join(ap2_coefs, by = c("apache_ii_cleaned" = "name"),
               na_matches = "never") %>%
     rename(ap2_diag_coef = coefficient) %>%
-    select(-setdiff(names(ap2_coefs), c("name", "coefficient")), -apache_ii_cleaned)
+    select(-setdiff(names(ap2_coefs), c("name", "coefficient")),
+           -apache_ii_cleaned)
 
   admission_data
 }
 
 #' Gets diangosis coefficents for APACHE II probabilty of death calculation.
-#' @param data Dataset after get_diagnoses.sql query. The download_mapping_data function should also have been run.
+#' @param diag_data Dataset after get_diagnoses.sql query.
+#' The download_mapping_data function should also have been run.
 #' @param output_path file path data is written to
 #' @import dplyr
 #' @import stringr
 #' @importFrom glue glue
 #' @noRd
-get_apache_ii_coefficents <- function(data, output_path){
+get_apache_ii_coefficents <- function(diag_data, dataset_name, output_path){
 
-  # Extracting the primary diagnosis from APACHE IV and snomed disorder and operation
-  data <- extract_snomed_and_apache_diagnosis(data)
+  ### CCAA
+  if(dataset_name == "CCAA"){
 
-  # Mapping the freetext diagnosis to SNOMED codes
-  data <- freetext_mapping_to_snomed(data, output_path)
+    # Extracting the primary diagnosis from APACHE IV
+    # and snomed disorder and operation
+    diag_data <- extract_snomed_and_apache_diagnosis(diag_data)
 
-  # Mapping snomed to apache iv
-  data <- snomed_to_apache_iv_mapping(data, output_path)
+    # Mapping the freetext diagnosis to SNOMED codes
+    diag_data <- freetext_mapping_to_snomed(diag_data, output_path)
 
-  # Mapping apache iv to apache ii
-  data <- apache_iv_to_apache_ii_mapping(data, output_path)
+    # Mapping snomed to apache iv
+    diag_data <- snomed_to_apache_iv_mapping(diag_data, output_path)
 
-  # Mapping apache ii to coefficients
-  data <- apache_ii_to_coefficient_mapping(data, output_path)
+    # Mapping apache iv to apache ii
+    diag_data <- apache_iv_to_apache_ii_mapping(diag_data, output_path)
 
-  data <- data %>%
+    # Mapping apache ii to coefficients
+    diag_data <- apache_ii_to_coefficient_mapping(diag_data, output_path)
+
+  coef_data <- diag_data %>%
     select(person_id, visit_occurrence_id, visit_detail_id,
            extracted_apache_diag,
            extracted_snomed_diag,
            extracted_snomed_code,
            ap2_diag_coef)
 
-  data
+  #### NICE
+  } else if (dataset_name == "NICE") {
+
+    nice_coef <- read_delim(glue("{getwd()}/analysis/nice_ap2_coefficients.csv"))
+
+    coef_data <- diag_data %>%
+      left_join(nice_coef,
+              by = c("diagnosis_concept_id"),
+              na_matches = "never") %>%
+      select(person_id,
+           visit_occurrence_id,
+           visit_detail_id,
+           primary_diagnosis_name,
+           primary_diag_ap2,
+           ap2_diag_coef)
+} else {
+  stop("No coefficients for this dataset found. The dataset_name variable ",
+       "should be either 'CCAA' or 'NICE'.")}
+
+  coef_data
 }
 
 #' Calculates APACHE II prob death
-#' @param data Dataset after the SeverityScoresOMOP::calculate_apache_ii_score() function has been run. Also after get_apache_ii_coefficents has been run. Assumes a variable called ap2_diag_coef is in the datset.
-#' @param imputation Determines the variable names the score and prob are stored in. Either 'normal' or 'none'.
+#' @param data Dataset after the SeverityScoresOMOP::calculate_apache_ii_score()
+#' function has been run. Also after get_apache_ii_coefficents has been run.
+#' Assumes a variable called ap2_diag_coef is in the datset.
+#' @param imputation Determines the variable names the score and prob are stored in.
+#' Either 'normal' or 'none'.
 #' @import dplyr
 #' @import stringr
 #' @noRd

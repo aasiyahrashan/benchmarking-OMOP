@@ -1,5 +1,8 @@
-secrets.R
 data/
 .Rproj*
 .Rproj.user
 output/
+.Rhistory
+connection_parameters.R
+*_concepts.csv
+.RData
