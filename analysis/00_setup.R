@@ -5,14 +5,14 @@
 # Aasiyah Rashan  <aasiyah@nicslk.com>
 # Daniel Puttmann <d.p.puttmann@amstedamumc.nl>
 #
-# Date of last edit: 2023-09-26
+# Date of last edit: 2023-12-09
 # ------------------------------------------------------------------------------
 library(conflicted)
 library(tidyverse)
 library(lubridate)
-### Download from here. https://github.com/aasiyahrashan/SeverityScoresOMOP
+# Download from here. https://github.com/aasiyahrashan/SeverityScoresOMOP
 library(SeverityScoresOMOP)
-## Download this from here. https://github.com/aasiyahrashan/TableOneDataframe
+# Download from here. https://github.com/aasiyahrashan/TableOneDataframe
 library(TableOneDataframe)
 library(glue)
 library(readxl)
@@ -20,7 +20,7 @@ library(googlesheets4)
 library(openxlsx)
 library(mice)
 library(SqlRender)
-## Required for the dbGetQuery function
+# Required for the dbGetQuery function
 library(DBI)
 conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag",    "dplyr")
@@ -65,7 +65,8 @@ if (!file.exists(concepts_path)) {
 
 ##### Sourcing function scripts and running analysis.
 source("analysis/connection_parameters.R")
-source("analysis/apache_ii_prob_function.R")
+source("analysis/inclusion_criteria_functions.R")
+source("analysis/apache_ii_prob_functions.R")
 source("analysis/smr_graph_functions.R")
 
 source("analysis/01_download_data_calculate_scores.R")
