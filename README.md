@@ -1,7 +1,7 @@
 
 # Benchmarking OMOP CDM: Network analysis code
 
-To perform a network analysis study, the code in this repository was developed through the partnership of two ICU quality registries. These are the Critical Care Asia Africa (CCAA) Network, based in England, and the [National Intensive Care Evaluation (NICE)], based in the Netherlands.
+To perform a network analysis study, the code in this repository was developed through the partnership of two ICU quality registries. These are the Critical Care Asia Africa (CCAA) Network, and the [National Intensive Care Evaluation (NICE)], based in the Netherlands.
 
 ## Goal
 
