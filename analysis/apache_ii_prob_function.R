@@ -23,7 +23,8 @@ apply_nice_specific_exclusions <- function(conn, data) {
   anti_join(data, nice_apache_exclusions_dataset,
             by = c("person_id",
                    "visit_occurrence_id",
-                   "visit_detail_id"))
+                   "visit_detail_id")) %>%
+    mutate(country = letters[1])
 }
 
 #' Remove special characters and spaces from a string variable to make it
@@ -66,6 +67,9 @@ apply_ccaa_specific_exclusions <- function(data, output_path){
     filter(Registry %in% c("PRICE", "IRIS", "NICR", "Afghanistan",
                            "Malaysia", "Bangladesh", "Kenya", "Uganda", "Ghana",
                            "Sierra Leone", "South Africa", "Ethiopia")) %>%
+    ### Assigning each registry to a letter.
+    mutate(country =
+             LETTERS[match(Registry, unique(all_implementation$Registry)) + 1]) %>%
     ### Excluding test units, wards, pediatric and neonatal ICUs, HDUs,
     # maternity units, emergency unit.
     filter(!`ICU Type` %in% c("TEST", "WARD", "PEDIATRIC", "NEONATAL")) %>%

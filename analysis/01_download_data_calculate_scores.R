@@ -194,7 +194,7 @@ apache_vars <- c(
 
 mice_data <- data %>%
   select(
-    person_id, visit_occurrence_id, visit_detail_id, care_site_id,
+    person_id, visit_occurrence_id, visit_detail_id, country,
     admission_year, age, gender, icu_outcome, icu_los, !!apache_vars,
     ap2_diag_coef
   )
@@ -206,13 +206,13 @@ pred <- make.predictorMatrix(mice_data)
 #### TODO - Include ICU as a categorical predictor variable.
 pred <- pred[, -which(colnames(pred) %in% c(
   "person_id", "visit_occurrence_id",
-  "visit_detail_id", "care_site_id", "admission_year",
+  "visit_detail_id", "country", "admission_year",
   "ap2_diag_coef"
 ))]
 
 pred <- pred[-which(rownames(pred) %in% c(
   "person_id", "visit_occurrence_id",
-  "visit_detail_id", "care_site_id", "admission_year",
+  "visit_detail_id", "country", "admission_year",
   "ap2_diag_coef"
 )), ]
 
