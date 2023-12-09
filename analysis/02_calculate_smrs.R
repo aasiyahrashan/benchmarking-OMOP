@@ -196,7 +196,7 @@ write.xlsx(output,
   na.string = "-"
 )
 
-############ Getting availability and range of the physiology components of the APACHE II score.
+# Getting availability and range of the physiology components of the APACHE II score.
 availability <- get_physiology_variable_availability(data)
 
 # Writing the output out.
@@ -206,10 +206,10 @@ writeData(wb, sheet = "2_availability_apache", x = availability, borders = "colu
 setColWidths(wb, "2_availability_apache", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
-########## Funnel plot of SMRs NI.
+# Funnel plot of SMRs NI.
 smr_graph(smrs_ni, "APACHE II normal imputation")
 ggsave("output/02_funnel_plot_ni.png")
 
-########## Funnel plot of SMRs MI.
+# Funnel plot of SMRs MI.
 smr_graph(smrs_mi, "APACHE II multiple imputation")
 ggsave("output/03_funnel_plot_mi.png")

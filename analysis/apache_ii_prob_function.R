@@ -1,32 +1,4 @@
-#' NICE specific patient apache exclusion
-#'
-#' This is done based on a boolean flag
-#'
-#' @param conn A connection object to a database
-#' @param data data in which the exclusion needs to be executed
-#'
-#' @import DBI
-#' @import dplyr
-#' @import glue
-#' @export
-apply_nice_specific_exclusions <- function(conn, data) {
-  raw_sql <- glue(
-    "SELECT o.person_id
-            ,o.visit_occurrence_id
-            ,o.visit_detail_id
-    FROM NICEOMOP.omop.observation o
-    WHERE o.observation_datetime >= '2019-01-01'
-		AND o.observation_datetime <= '2023-01-01'
-		AND observation_concept_id = 2000000014")
-
-  nice_apache_exclusions_dataset <- dbGetQuery(conn, raw_sql)
-  anti_join(data, nice_apache_exclusions_dataset,
-            by = c("person_id",
-                   "visit_occurrence_id",
-                   "visit_detail_id")) %>%
-    mutate(country = letters[1])
-}
-
+#' CCAA specific
 #' Remove special characters and spaces from a string variable to make it
 #' easier to join.
 #' @param string_var string to be cleaned
@@ -43,6 +15,7 @@ clean_string_to_join <- function(string_var){
 }
 
 
+#' CCAA specific
 #' Remove special characters and spaces from a string variable to make it
 #' easier to join.
 #' @param string_var string to be cleaned
@@ -58,47 +31,9 @@ clean_freetext_strings <- function(string_var){
 
 }
 
-apply_ccaa_specific_exclusions <- function(data, output_path){
-
-  all_implementation <- read_csv(glue("{output_path}/data/all_implementation.csv"))
-  all_implementation <- all_implementation %>%
-    ### Only including valid registries
-    filter(!is.na(`Unit ID`)) %>%
-    filter(Registry %in% c("PRICE", "IRIS", "NICR", "Afghanistan",
-                           "Malaysia", "Bangladesh", "Kenya", "Uganda", "Ghana",
-                           "Sierra Leone", "South Africa", "Ethiopia")) %>%
-    ### Assigning each registry to a letter.
-    mutate(country =
-             LETTERS[match(Registry, unique(all_implementation$Registry)) + 1]) %>%
-    ### Excluding test units, wards, pediatric and neonatal ICUs, HDUs,
-    # maternity units, emergency unit.
-    filter(!`ICU Type` %in% c("TEST", "WARD", "PEDIATRIC", "NEONATAL")) %>%
-    filter(!grepl("*PICU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Pediatric*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Ward*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*HDU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*High Risk Unit*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*High Dependency*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*High care unit*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*GyneObs ICU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Gyn/Obs*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*OBS*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Gyne Post Operative*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*G/OICU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Obstetric ICU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Maternal HDU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("EU", `ICU Name`, ignore.case=TRUE),
-           !grepl("ED", `ICU Name`, ignore.case=TRUE))
-
-  ## Joining to the main dataset so only patients admitted to allowed units
-  # are included.
-  data <- data %>%
-    mutate(`Unit ID` = gsub( " .*$", "", care_site_name)) %>%
-    inner_join(all_implementation, by = "Unit ID")
-
-  data
-}
-
+#' CCAA specific
+#' Download CCAA specific mapping files for APACHE II and to define inclusion.
+#' @import googlesheets4
 download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
                                    ap2_path, ap2_coefs_path,
                                    implementation_asia_path,
@@ -162,6 +97,7 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
   }
 }
 
+#' CCAA specific
 #' Extracting the primary or all apache iv diagnosis and snomed diagnosis
 #' This function will give 3 columns named primary_apache, extracted_snomed_diag
 #' and extracted_snomed_code
@@ -234,6 +170,7 @@ extract_snomed_and_apache_diagnosis <- function(data){
 }
 
 
+#' CCAA specific
 #' Extracts the releveant snomed diagnosis and snomed code for the
 #' diagnosis entered as freetext
 #' @param admission_data admission_data that contains snomed_diag and
@@ -270,6 +207,7 @@ freetext_mapping_to_snomed <- function(admission_data, output_path){
   admission_data
 }
 
+#' CCAA specific
 #' Maps the snomed diagnosis to APACHE IV
 #' @param admission_data Needs to have extracted_apache_diag
 #' and extracted_snomed_code
@@ -297,6 +235,7 @@ snomed_to_apache_iv_mapping <- function(admission_data, output_path){
   admission_data
 }
 
+#' CCAA specific
 #' Maps the APACHE IV to APACHE II
 #' @param admission_data Needs to have apache_iv_diag column
 #' @param output_path file path reports and data is written to
@@ -323,6 +262,7 @@ apache_iv_to_apache_ii_mapping <- function(admission_data, output_path){
   admission_data
 }
 
+#' CCAA specific
 #' Maps the APACHE II diagnosis to coefficient
 #' @param admission_data Needs to have apache_ii_diag column
 #' @param output_path file path reports and data is written to
