@@ -23,12 +23,15 @@ smrs_ni <- data %>%
 mice_summary <- mice_long %>%
   #### Don't want to include the original dataset
   filter(.imp != 0) %>%
-  group_by(person_id, visit_occurrence_id, visit_detail_id, country,
-           admission_year) %>%
+  group_by(
+    person_id, visit_occurrence_id, visit_detail_id, country,
+    admission_year
+  ) %>%
   summarise(
     apache_ii_score_no_imputation = mean(apache_ii_score_no_imputation),
     apache_ii_prob_no_imputation = mean(apache_ii_prob_no_imputation,
-                                        na.rm = TRUE)
+      na.rm = TRUE
+    )
   ) %>%
   ungroup()
 
@@ -91,16 +94,18 @@ patients_per_month_country_non_summarised <-
         percent_change_next_month < -80 ~ FALSE,
         TRUE ~ TRUE
       ),
-    date = as.Date(paste0(as.character(admission_year), "-",
-                          as.character(admission_month), "-", "01"))
+    date = as.Date(paste0(
+      as.character(admission_year), "-",
+      as.character(admission_month), "-", "01"
+    ))
   )
 
 # #### Plotting and saving graph of percentage increase and decrease in c
 # ontributions per site.
 p <- patients_per_month_country_non_summarised %>%
   filter(!is.na(percent_change_last_month) &
-           percent_change_last_month != -Inf &
-           percent_change_last_month != Inf) %>%
+    percent_change_last_month != -Inf &
+    percent_change_last_month != Inf) %>%
   filter(percent_change_last_month < 0)
 
 patients_per_month_country <-
@@ -111,33 +116,41 @@ patients_per_month_country <-
 #### Filtering out SMRs with fewer than 6 months of contribution.
 ### This is based on the ICNARC report. https://www.google.com/url?q=https://onlinereports.icnarc.org/Reports/2019/12/annual-quality-report-201819-for-adult-critical-care&sa=D&source=docs&ust=1698589035706375&usg=AOvVaw3Zu-zA_qy5M02R9HGsMLZP
 smrs_ni <- left_join(smrs_ni,
-                     patients_per_month_country,
+  patients_per_month_country,
   by = c("country", "admission_year")
 ) %>%
   filter(months_contributed_in_year >= 6 | (months_contributed_in_year >= 3 &
-                                              admission_year == 2019))
+    admission_year == 2019))
 
 smrs_mi <- left_join(smrs_mi,
-                     patients_per_month_country,
+  patients_per_month_country,
   by = c("country", "admission_year")
 ) %>%
   filter(months_contributed_in_year >= 6 |
-           (months_contributed_in_year >= 3 &
-              admission_year == 2019))
+    (months_contributed_in_year >= 3 &
+      admission_year == 2019))
 
 
 # Create tables and graphs ------------------------------------------------
 
 ######### Creating table one.
 output <- make_output_df(data, "admission_year")
-output <- get_count(data, "admission_year", "person_id",
-                    "Number of patients", output)
-output <- get_unique_count(data, "admission_year", "country",
-                           "Number of countries", output)
+output <- get_count(
+  data, "admission_year", "person_id",
+  "Number of patients", output
+)
+output <- get_unique_count(
+  data, "admission_year", "country",
+  "Number of countries", output
+)
 output <- get_median_iqr(data, "admission_year", "age",
-                         "Age", output, round = 2)
+  "Age", output,
+  round = 2
+)
 output <- get_n_percent_value(data, "admission_year", "gender", "MALE",
-                              "Male", output, round = 2)
+  "Male", output,
+  round = 2
+)
 
 ############## Normal imputation
 output <- get_median_iqr(data, "admission_year",
@@ -165,7 +178,7 @@ output <- get_median_iqr(mice_summary, "admission_year",
   round = 2
 )
 output <- get_median_iqr(mice_summary, "admission_year",
-                         "apache_ii_prob_no_imputation",
+  "apache_ii_prob_no_imputation",
   "APACHE II probability of mortality MI", output,
   round = 2
 )
@@ -181,7 +194,7 @@ output <- rbind(output, smr_mi_output[1, ])
 
 ### Outcomes
 output <- get_n_percent_value(data, "admission_year", "icu_outcome",
-                              "Dead", "ICU mortality",
+  "Dead", "ICU mortality",
   output,
   round = 2
 )

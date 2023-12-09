@@ -17,13 +17,17 @@ apply_nice_specific_exclusions <- function(conn, data) {
     FROM NICEOMOP.omop.observation o
     WHERE o.observation_datetime >= '2019-01-01'
 		AND o.observation_datetime <= '2023-01-01'
-		AND observation_concept_id = 2000000014")
+		AND observation_concept_id = 2000000014"
+  )
 
   nice_apache_exclusions_dataset <- dbGetQuery(conn, raw_sql)
   anti_join(data, nice_apache_exclusions_dataset,
-            by = c("person_id",
-                   "visit_occurrence_id",
-                   "visit_detail_id")) %>%
+    by = c(
+      "person_id",
+      "visit_occurrence_id",
+      "visit_detail_id"
+    )
+  ) %>%
     mutate(country = letters[1])
 }
 
@@ -34,42 +38,47 @@ apply_nice_specific_exclusions <- function(conn, data) {
 #'
 #' @import dplyr
 #' @export
-apply_ccaa_specific_exclusions <- function(data, output_path){
-
+apply_ccaa_specific_exclusions <- function(data, output_path) {
   all_implementation <- read_csv(glue("{output_path}/data/all_implementation.csv"))
   all_implementation <- all_implementation %>%
     ### Only including valid registries
     filter(!is.na(`Unit ID`)) %>%
-    filter(Registry %in% c("PRICE", "IRIS", "NICR", "Afghanistan",
-                           "Malaysia", "Bangladesh", "Kenya", "Uganda", "Ghana",
-                           "Sierra Leone", "South Africa", "Ethiopia")) %>%
+    filter(Registry %in% c(
+      "PRICE", "IRIS", "NICR", "Afghanistan",
+      "Malaysia", "Bangladesh", "Kenya", "Uganda", "Ghana",
+      "Sierra Leone", "South Africa", "Ethiopia"
+    )) %>%
     ### Assigning each registry to a letter.
-    mutate(country =
-             LETTERS[match(Registry, unique(all_implementation$Registry)) + 1]) %>%
+    mutate(
+      country =
+        LETTERS[match(Registry, unique(all_implementation$Registry)) + 1]
+    ) %>%
     ### Excluding test units, wards, pediatric and neonatal ICUs, HDUs,
     # maternity units, emergency unit.
     filter(!`ICU Type` %in% c("TEST", "WARD", "PEDIATRIC", "NEONATAL")) %>%
-    filter(!grepl("*PICU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Pediatric*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Ward*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*HDU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*High Risk Unit*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*High Dependency*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*High care unit*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*GyneObs ICU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Gyn/Obs*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*OBS*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Gyne Post Operative*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*G/OICU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Obstetric ICU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("*Maternal HDU*", `ICU Name`, ignore.case=TRUE),
-           !grepl("EU", `ICU Name`, ignore.case=TRUE),
-           !grepl("ED", `ICU Name`, ignore.case=TRUE))
+    filter(
+      !grepl("*PICU*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*Pediatric*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*Ward*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*HDU*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*High Risk Unit*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*High Dependency*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*High care unit*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*GyneObs ICU*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*Gyn/Obs*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*OBS*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*Gyne Post Operative*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*G/OICU*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*Obstetric ICU*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*Maternal HDU*", `ICU Name`, ignore.case = TRUE),
+      !grepl("EU", `ICU Name`, ignore.case = TRUE),
+      !grepl("ED", `ICU Name`, ignore.case = TRUE)
+    )
 
   ## Joining to the main dataset so only patients admitted to allowed units
   # are included.
   data <- data %>%
-    mutate(`Unit ID` = gsub( " .*$", "", care_site_name)) %>%
+    mutate(`Unit ID` = gsub(" .*$", "", care_site_name)) %>%
     inner_join(all_implementation, by = "Unit ID")
 
   data

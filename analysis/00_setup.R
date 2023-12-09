@@ -23,7 +23,7 @@ library(SqlRender)
 # Required for the dbGetQuery function
 library(DBI)
 conflicted::conflict_prefer("filter", "dplyr")
-conflicted::conflict_prefer("lag",    "dplyr")
+conflicted::conflict_prefer("lag", "dplyr")
 
 # Benchmark date range defining -------------------------------------------
 start_date <- "2019-01-01"
@@ -46,10 +46,12 @@ if (!file.exists(conn_parr_path)) {
 }
 
 source("analysis/connection_parameters.R")
-if(!dialect %in% listSupportedDialects()$dialect){
-  stop(glue("Your dialect ({dialect}) is not recognized by SQLRender, please",
-            "resubmit your dialect as one of the following:",
-            "\n{toString(listSupportedDialects()$dialect)}"))
+if (!dialect %in% listSupportedDialects()$dialect) {
+  stop(glue(
+    "Your dialect ({dialect}) is not recognized by SQLRender, please",
+    "resubmit your dialect as one of the following:",
+    "\n{toString(listSupportedDialects()$dialect)}"
+  ))
 }
 
 ## Creates & opens a custom *_concepts.csv file from example if nonexistent.
