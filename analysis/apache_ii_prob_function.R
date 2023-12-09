@@ -245,7 +245,7 @@ freetext_mapping_to_snomed <- function(admission_data, output_path){
   admission_data <- admission_data %>%
     extracted_snomed_diag = if_else(is.na(extracted_snomed_code),
                                     clean_freetext_strings(extracted_snomed_diag),
-                                    extracted_snomed_diag)) %>%
+                                    extracted_snomed_diag) %>%
     left_join(freetext_mapped, by = c("extracted_snomed_diag" = "sourceName")) %>%
     distinct(person_id, visit_occurrence_id, visit_detail_id,
              extracted_snomed_diag, .keep_all = TRUE) %>%
