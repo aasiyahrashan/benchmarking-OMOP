@@ -19,6 +19,10 @@ library(googlesheets4)
 library(openxlsx)
 library(mice)
 library(SqlRender)
+## Required for the dbGetQuery function
+library(DBI)
+conflicted::conflict_prefer("filter", "dplyr")
+conflicted::conflict_prefer("lag",    "dplyr")
 
 # Benchmark date range defining -------------------------------------------
 start_date <- "2019-01-01"

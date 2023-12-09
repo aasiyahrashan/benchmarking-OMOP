@@ -25,15 +25,20 @@ data <- get_score_variables(
 )
 
 ###### Getting care site and death data and merging with main data set.
+# Editing date arugments to add single quotes for SQL
+start_date_sql <- single_quote(start_date)
+end_date_sql <- single_quote(end_date)
+
 raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
   SqlRender::translate(tolower(dialect)) %>%
   SqlRender::render(
     schema = schema,
-    start_date = start_date,
-    end_date = end_date
+    start_date = start_date_sql,
+    end_date = end_date_sql
   )
 
 outcome_data <- dbGetQuery(conn, raw_sql)
+
 data <- left_join(data,
   outcome_data,
   by = c(
@@ -51,8 +56,8 @@ raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
   SqlRender::render(
     dbname = dbname,
     schema = schema,
-    start_date = start_date,
-    end_date = end_date
+    start_date = start_date_sql,
+    end_date = end_date_sql
   )
 
 #### Running the query
