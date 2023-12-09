@@ -105,7 +105,7 @@ if (dataset_name == "CCAA") {
 }
 
 
-### This dataset needs variables called primary_diagnosis_name and ap_diag_coef.
+# This needs to include variables called primary_diagnosis_name and ap_diag_coef.
 coef_data <- get_apache_ii_coefficents(diag_data, dataset_name, output_path)
 data <- left_join(data,
   coef_data,
@@ -130,16 +130,7 @@ if (dataset_name == "CCAA") {
 data <- data %>%
   filter(age >= 18) %>%
   ###### For other datasets, replace with diagnosis name.
-  ### FOR CCAA (Ensure this works for visit detail number 60186, person 59355).
-  filter(!grepl("*burn*",
-    if (dataset_name == "CCAA") {
-      extracted_apache_diag
-      ##### AASIYAH REMEMBER TO FIX FOR SNOMED.
-    } else {
-      primary_diagnosis_name
-    },
-    ignore.case = TRUE
-  )) %>%
+  filter(!grepl("*burn*", primary_diagnosis_name, ignore.case=TRUE)) %>%
   # Calculating a few variables I need.
   mutate(
     icu_outcome = if_else(!is.na(death_datetime) &

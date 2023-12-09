@@ -9,6 +9,7 @@
 # ------------------------------------------------------------------------------
 library(conflicted)
 library(tidyverse)
+library(lubridate)
 ### Download from here. https://github.com/aasiyahrashan/SeverityScoresOMOP
 library(SeverityScoresOMOP)
 ## Download this from here. https://github.com/aasiyahrashan/TableOneDataframe
