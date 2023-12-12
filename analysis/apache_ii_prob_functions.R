@@ -325,6 +325,8 @@ apache_ii_to_coefficient_mapping <- function(admission_data, output_path) {
       na_matches = "never"
     ) %>%
     rename(ap2_diag_coef = coefficient) %>%
+    mutate(primary_diagnosis_name = coalesce(extracted_apache_diag,
+                                             extracted_snomed_diag)) %>%
     select(
       -setdiff(names(ap2_coefs), c("name", "coefficient")),
       -apache_ii_cleaned
@@ -363,6 +365,7 @@ get_apache_ii_coefficents <- function(diag_data, dataset_name, output_path) {
     coef_data <- diag_data %>%
       select(
         person_id, visit_occurrence_id, visit_detail_id,
+        primary_diagnosis_name,
         extracted_apache_diag,
         extracted_snomed_diag,
         extracted_snomed_code,
