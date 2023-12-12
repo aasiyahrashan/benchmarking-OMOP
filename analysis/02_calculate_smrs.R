@@ -7,7 +7,6 @@ smrs_ni <- data %>%
   summarise(
     total = sum(!is.na(person_id)),
     # SMRs
-    median_missing_vars = median(n_missing_ap2, na.rm = TRUE),
     median_ap2_score = median(apache_ii_score, na.rm = TRUE),
     median_ap2_prob = median(apache_ii_prob * 100, na.rm = TRUE),
     expected_ap2 = median(apache_ii_prob, na.rm = TRUE) * total,
