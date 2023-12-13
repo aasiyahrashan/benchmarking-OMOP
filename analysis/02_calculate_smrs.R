@@ -43,13 +43,14 @@ mice_summary <- mice_long %>%
 # Then calculating SMR for mean, and 95% CI limits.
 # Then plotting funnel plot for mean SMR and expected deaths.
 # Then as a sensitivity analysis, plotting upper and lower 95% CIs of the SMRs
-# NOTE - CHECK WHY I NEED the NA.RM
 smrs_mi <- mice_long %>%
   filter(.imp != 0) %>%
   group_by(.imp, country, admission_year) %>%
   summarise(
     total = sum(!is.na(person_id)),
     # Getting mean and variance of expected deaths to use for Rubin's rule pooling.
+    # The na.rm is necessary because CCAA has some patients without AP2 mortality probabilities.
+    # Need to fix.
     expected_ap2 = mean(apache_ii_prob_no_imputation, na.rm = TRUE) * total,
     var_mean_expected = var(apache_ii_prob_no_imputation, na.rm = TRUE)/total,
     n_dead = sum(icu_outcome == "Dead", na.rm = TRUE),
