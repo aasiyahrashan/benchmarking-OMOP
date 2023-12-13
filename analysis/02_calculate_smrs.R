@@ -1,5 +1,6 @@
 load("data/03_cleaned_filtered_data.RData")
 load("data/04_mice_data.RData")
+mice_long <- complete(mice_data, "long", include = TRUE)
 
 # SMRS normal imputation --------------------------------------------------
 smrs_ni <- data %>%
@@ -17,8 +18,9 @@ smrs_ni <- data %>%
   ungroup()
 
 # SMRS multiple imputation --------------------------------------------------
-##### Getting score and mortality probablity per patient. Just getting mean.
-##### Not completely sure if correct.
+# To report median and IQR of AP2 score,
+# getting score and mortality probablity per patient.
+# Summarising using mean to get a point estimate. We won't report variability.
 mice_summary <- mice_long %>%
   #### Don't want to include the original dataset
   filter(.imp != 0) %>%
@@ -34,30 +36,38 @@ mice_summary <- mice_long %>%
   ) %>%
   ungroup()
 
-######### SMRs multiple imputation
+# To report SMRs for the funnel plot,
+# First calculating expected deaths per ICU and imputed dataset.
+# Then using Rubin's rules to calculate point estimate and 95%CI for expected deaths.
+# Used this tutorial. https://www.bookdown.org/rwnahhas/RMPH/mi-descriptives.html
+# Then calculating SMR for mean, and 95% CI limits.
+# Then plotting funnel plot for mean SMR and expected deaths.
+# Then as a sensitivity analysis, plotting upper and lower 95% CIs of the SMRs
+# NOTE - CHECK WHY I NEED the NA.RM
 smrs_mi <- mice_long %>%
   filter(.imp != 0) %>%
   group_by(.imp, country, admission_year) %>%
   summarise(
     total = sum(!is.na(person_id)),
-    # SMRs
-    expected_ap2 = median(apache_ii_prob_no_imputation, na.rm = TRUE) * total,
+    # Getting mean and variance of expected deaths to use for Rubin's rule pooling.
+    expected_ap2 = mean(apache_ii_prob_no_imputation, na.rm = TRUE) * total,
+    var_mean_expected = var(apache_ii_prob_no_imputation, na.rm = TRUE)/total,
     n_dead = sum(icu_outcome == "Dead", na.rm = TRUE),
-    percent_dead = 100 * sum(icu_outcome == "Dead", na.rm = TRUE) / total,
-    smr_ap2 = n_dead / expected_ap2
   ) %>%
-  ####### Now applying Rubin's rules to get CIs.
-  ####### Not done yet. Just getting the mean for the moment.
-  #### Getting the mean over all imputed datasets as the point estimate.
-  group_by(country, admission_year) %>%
+  group_by(country, admission_year, n_dead) %>%
   summarise(
-    total = mean(total),
-    expected_ap2 = mean(expected_ap2),
-    n_dead = mean(n_dead),
-    smr_ap2 = mean(smr_ap2)
-  ) %>%
-  ungroup()
-
+    pooled_mean = mean(expected_ap2),
+    within_imp_var = mean(var_mean_expected),
+    between_imp_var = var(expected_ap2),
+    pooled_variance = within_imp_var + (1 + 1/max(.imp))*between_imp_var,
+    pooled_se = sqrt(pooled_variance),
+    lower_ci_expected_deaths = pooled_mean - 1.96 * pooled_se,
+    upper_ci_expected_deaths = pooled_mean + 1.96 * pooled_se) %>%
+  # Getting SMRs based on pooled expected deaths.
+  mutate(
+    smr = n_dead / pooled_mean,
+    lower_ci_smr = n_dead / lower_ci_expected_deaths,
+    upper_ci_smr = n_dead / upper_ci_expected_deaths)
 
 ### Deciding if countries contributed data each month or not month, or not by
 ### comparing number of admissions over time.
