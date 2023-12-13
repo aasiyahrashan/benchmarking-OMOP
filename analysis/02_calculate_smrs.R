@@ -65,9 +65,9 @@ smrs_mi <- mice_long %>%
     upper_ci_expected_deaths = pooled_mean + 1.96 * pooled_se) %>%
   # Getting SMRs based on pooled expected deaths.
   mutate(
-    smr = n_dead / pooled_mean,
-    lower_ci_smr = n_dead / lower_ci_expected_deaths,
-    upper_ci_smr = n_dead / upper_ci_expected_deaths)
+    smr_ap2 = n_dead / pooled_mean,
+    lower_ci_smr_ap2 = n_dead / lower_ci_expected_deaths,
+    upper_ci_smr_ap2 = n_dead / upper_ci_expected_deaths)
 
 ### Deciding if countries contributed data each month or not month, or not by
 ### comparing number of admissions over time.
@@ -229,9 +229,15 @@ setColWidths(wb, "2_availability_apache", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
 # Funnel plot of SMRs NI.
-smr_graph(smrs_ni, "APACHE II normal imputation")
+smr_graph(smrs_ni, "expected_ap2", "APACHE II normal imputation")
 ggsave("output/02_funnel_plot_ni.png")
 
 # Funnel plot of SMRs MI.
-smr_graph(smrs_mi, "APACHE II multiple imputation")
+smr_graph(smrs_mi, "pooled_mean", "APACHE II multiple imputation")
 ggsave("output/03_funnel_plot_mi.png")
+
+# Sensitivity analysis funnel plot for upper and lower CIs.
+smr_graph(smrs_mi, "lower_ci_expected_deaths", "APACHE II multiple imputation lower 95% CI")
+ggsave("output/04_funnel_plot_mi_lower_ci.png")
+smr_graph(smrs_mi, "upper_ci_expected_deaths", "APACHE II multiple imputation upper 95% CI")
+ggsave("output/05_funnel_plot_mi_upper_ci.png")

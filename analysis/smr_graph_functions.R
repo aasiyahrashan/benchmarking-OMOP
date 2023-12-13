@@ -1,12 +1,13 @@
 #' Summarises by unit for graph.
 #' @param data dataset containing admission and discharge info one row per patient.
+#' @param expected_name name of the variable containing expected number of deaths
 #' @import dplyr
 #' @noRd
-smr_graph <- function(by_split, title = "") {
+smr_graph <- function(by_split, expected_name, title = "") {
   custom_colours <- c("#48a9dd", "#004c77", "#7fbc41", "#4d9221", "#F8766D")
   by_split <- by_split %>%
     mutate(
-      expected = expected_ap2,
+      expected = get(expected_name),
       smr = n_dead / expected
     )
 
