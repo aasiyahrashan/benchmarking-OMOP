@@ -52,7 +52,7 @@ smrs_mi <- mice_long %>%
     # The na.rm is necessary because CCAA has some patients without AP2 mortality probabilities.
     # Need to fix.
     expected_ap2 = mean(apache_ii_prob_no_imputation, na.rm = TRUE) * total,
-    var_mean_expected = var(apache_ii_prob_no_imputation, na.rm = TRUE)/total,
+    var_mean_expected = var(apache_ii_prob_no_imputation, na.rm = TRUE) / total,
     n_dead = sum(icu_outcome == "Dead", na.rm = TRUE),
   ) %>%
   group_by(country, admission_year, n_dead) %>%
@@ -60,15 +60,17 @@ smrs_mi <- mice_long %>%
     pooled_mean = mean(expected_ap2),
     within_imp_var = mean(var_mean_expected),
     between_imp_var = var(expected_ap2),
-    pooled_variance = within_imp_var + (1 + 1/max(.imp))*between_imp_var,
+    pooled_variance = within_imp_var + (1 + 1 / max(.imp)) * between_imp_var,
     pooled_se = sqrt(pooled_variance),
     lower_ci_expected_deaths = pooled_mean - 1.96 * pooled_se,
-    upper_ci_expected_deaths = pooled_mean + 1.96 * pooled_se) %>%
+    upper_ci_expected_deaths = pooled_mean + 1.96 * pooled_se
+  ) %>%
   # Getting SMRs based on pooled expected deaths.
   mutate(
     smr_ap2 = n_dead / pooled_mean,
     lower_ci_smr_ap2 = n_dead / lower_ci_expected_deaths,
-    upper_ci_smr_ap2 = n_dead / upper_ci_expected_deaths)
+    upper_ci_smr_ap2 = n_dead / upper_ci_expected_deaths
+  )
 
 ### Deciding if countries contributed data each month or not month, or not by
 ### comparing number of admissions over time.
