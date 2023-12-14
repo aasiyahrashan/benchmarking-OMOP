@@ -70,7 +70,8 @@ smrs_mi <- mice_long %>%
     smr_ap2 = n_dead / pooled_mean,
     lower_ci_smr_ap2 = n_dead / lower_ci_expected_deaths,
     upper_ci_smr_ap2 = n_dead / upper_ci_expected_deaths
-  )
+  ) %>%
+  ungroup()
 
 ### Deciding if countries contributed data each month or not month, or not by
 ### comparing number of admissions over time.
