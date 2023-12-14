@@ -187,10 +187,15 @@ apache_vars <- c(
   "max_hematocrit", "min_hr", "max_hr", "min_rr", "max_rr", "min_ph",
   "max_ph", "min_bicarbonate", "max_bicarbonate", "min_sodium",
   "max_sodium", "min_potassium", "max_potassium", "min_gcs",
-  "min_creatinine", "max_creatinine", "max_sbp", "min_sbp",
-  "max_dbp", "min_dbp", "count_comorbidity", "count_renal_failure",
+  "min_creatinine", "max_creatinine", "count_comorbidity", "count_renal_failure",
   "count_emergency_admission"
 )
+
+if ("max_map" %in% colnames(data)) {
+  append(apache_vars, c("max_map", "min_map"))
+} else {
+  append(apache_vars, c("max_sbp", "min_sbp", "max_dbp", "min_dbp"))
+}
 
 mice_data <- data %>%
   select(
