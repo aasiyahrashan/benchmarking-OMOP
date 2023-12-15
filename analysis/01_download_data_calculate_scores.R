@@ -203,16 +203,15 @@ mice_data <- data %>%
 pred <- make.predictorMatrix(mice_data)
 
 #### Removing variables from the prediction.
-#### TODO - Include ICU as a categorical predictor variable.
 pred <- pred[, -which(colnames(pred) %in% c(
   "person_id", "visit_occurrence_id",
-  "visit_detail_id", "country", "admission_year",
+  "visit_detail_id", "admission_year",
   "ap2_diag_coef"
 ))]
 
 pred <- pred[-which(rownames(pred) %in% c(
   "person_id", "visit_occurrence_id",
-  "visit_detail_id", "country", "admission_year",
+  "visit_detail_id", "admission_year",
   "ap2_diag_coef"
 )), ]
 
