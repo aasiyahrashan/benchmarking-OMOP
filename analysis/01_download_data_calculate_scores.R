@@ -191,10 +191,10 @@ apache_vars <- c(
   "count_emergency_admission"
 )
 
-if ("max_map" %in% colnames(data)) {
-  append(apache_vars, c("max_map", "min_map"))
-} else {
+if ("max_sbp" %in% colnames(data)) {
   append(apache_vars, c("max_sbp", "min_sbp", "max_dbp", "min_dbp"))
+} else {
+  append(apache_vars, c("max_map", "min_map"))
 }
 
 mice_data <- data %>%
@@ -221,7 +221,7 @@ pred <- pred[-which(rownames(pred) %in% c(
 )), ]
 
 mice_data <- mice(mice_data,
-  pred = pred, m = 30, maxit = 100,
+  pred = pred, m = 5, maxit = 5,
   method = "pmm", seed = 100
 )
 
