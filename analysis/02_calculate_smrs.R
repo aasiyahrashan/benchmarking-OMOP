@@ -113,12 +113,6 @@ patients_per_month_country_non_summarised <-
 
 # #### Plotting and saving graph of percentage increase and decrease in c
 # ontributions per site.
-p <- patients_per_month_country_non_summarised %>%
-  filter(!is.na(percent_change_last_month) &
-    percent_change_last_month != -Inf &
-    percent_change_last_month != Inf) %>%
-  filter(percent_change_last_month < 0)
-
 patients_per_month_country <-
   patients_per_month_country_non_summarised %>%
   group_by(country, admission_year) %>%
