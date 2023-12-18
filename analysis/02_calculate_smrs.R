@@ -49,11 +49,9 @@ smrs_mi <- mice_long %>%
   summarise(
     total = sum(!is.na(person_id)),
     # Getting mean and variance of expected deaths to use for Rubin's rule pooling.
-    # The na.rm is necessary because CCAA has some patients without AP2 mortality probabilities.
-    # Need to fix.
-    expected_ap2 = mean(apache_ii_prob_no_imputation, na.rm = TRUE) * total,
-    var_mean_expected = var(apache_ii_prob_no_imputation, na.rm = TRUE) / total,
-    n_dead = sum(icu_outcome == "Dead", na.rm = TRUE),
+    expected_ap2 = mean(apache_ii_prob_no_imputation) * total,
+    var_mean_expected = var(apache_ii_prob_no_imputation) / total,
+    n_dead = sum(icu_outcome == "Dead"),
   ) %>%
   group_by(country, admission_year, n_dead) %>%
   summarise(
