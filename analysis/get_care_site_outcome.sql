@@ -2,8 +2,10 @@ SELECT p.person_id
      ,p.person_source_value -- for debugging only. Not required for the main analysis.
 	   ,vo.visit_occurrence_id
 	   ,vd.visit_detail_id
-       ,COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date, vo.visit_start_datetime, vo.visit_start_date) AS icu_admission_datetime
-       ,COALESCE(vd.visit_detail_end_datetime,   vd.visit_detail_start_date, vo.visit_end_datetime,   vo.visit_start_date) AS icu_discharge_datetime
+     ,COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date, vo.visit_start_datetime, vo.visit_start_date) AS icu_admission_datetime
+     ,COALESCE(vd.visit_detail_end_datetime,   vd.visit_detail_start_date, vo.visit_end_datetime,   vo.visit_start_date) AS icu_discharge_datetime
+	   ,COALESCE(vo.visit_start_datetime, vo.visit_start_date) AS hospital_admission_datetime
+     ,COALESCE(vo.visit_end_datetime,   vo.visit_start_date) AS hospital_discharge_datetime
 	   ,cs.care_site_id
 	   ,cs.care_site_name
 	   ,d.death_datetime

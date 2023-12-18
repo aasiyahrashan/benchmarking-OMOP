@@ -154,6 +154,12 @@ data <- data %>%
       icu_admission_datetime,
       units = "days"
     )),
+    hospital_outcome = if_else(!is.na(death_datetime) &
+                            death_datetime > hospital_admission_datetime &
+                            death_datetime <= hospital_discharge_datetime,
+                          "Dead",
+                          "Alive"
+    ),
     admission_year = as.factor(year(icu_admission_datetime))
   )
 
