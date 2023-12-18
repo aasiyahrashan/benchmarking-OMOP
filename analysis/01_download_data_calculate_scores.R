@@ -127,10 +127,21 @@ if (dataset_name == "CCAA") {
   data <- apply_ccaa_specific_exclusions(data, output_path)
 }
 
+# Getting first ICU admission per patient.
+data <- data %>%
+  arrange(person_id, visit_occurrence_id, icu_admission_datetime) %>%
+  distinct(person_id, visit_occurrence_id, .keep_all = TRUE)
+
+# Applying exclusion criteria.
 data <- data %>%
   filter(age >= 18) %>%
-  ###### For other datasets, replace with diagnosis name.
-  filter(!grepl("*burn*", primary_diagnosis_name, ignore.case=TRUE)) %>%
+  # Removing diagsnoses which can't have APACHE II calculated on them.
+  filter(!grepl("*burn*", primary_diagnosis_name, ignore.case=TRUE),
+         !grepl("*cesarean section*", primary_diagnosis_name, ignore.case=TRUE),
+         !grepl("*ectopic pregnancy*", primary_diagnosis_name, ignore.case=TRUE),
+         ) %>%
+  # Excluding patients without APACHE II diagnoses
+  filter(!is.na(ap2_diag_coef)) %>%
   # Calculating a few variables I need.
   mutate(
     icu_outcome = if_else(!is.na(death_datetime) &

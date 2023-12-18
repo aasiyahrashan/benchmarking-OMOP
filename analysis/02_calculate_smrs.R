@@ -97,14 +97,14 @@ patients_per_month_country_non_summarised <-
       ((n_admissions - lead(n_admissions)) / lead(n_admissions)) * 100
   ) %>%
   #### Only allowing months with admissions which haven't
-  #### decreased more than 80 % compared to previous or next month to
+  #### decreased more than 60% compared to previous or next month to
   #### count as contributions.
   mutate(
     contributed =
       case_when(
         n_admissions < 5 ~ FALSE,
-        percent_change_last_month < -80 ~ FALSE,
-        percent_change_next_month < -80 ~ FALSE,
+        percent_change_last_month < -60 ~ FALSE,
+        percent_change_next_month < -60 ~ FALSE,
         TRUE ~ TRUE
       ),
     date = as.Date(paste0(
