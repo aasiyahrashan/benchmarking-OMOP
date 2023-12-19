@@ -119,52 +119,104 @@ data <- left_join(data,
 save(data, file = "data/01_orig_data.RData")
 save(diag_data, file = "data/02_diag_data.RData")
 
-################ Starting data analysis.
+
+# Data analysis -----------------------------------------------------------
 load("data/01_orig_data.RData")
 
-###### Applying exclusion critera.
+
+# Exclusion criteria ------------------------------------------------------
 if (dataset_name == "CCAA") {
   data <- apply_ccaa_specific_exclusions(data, output_path)
 }
+
+# Calculating variables needed for later
+data <- data %>%
+mutate(
+  icu_outcome = if_else(!is.na(death_datetime) &
+                          death_datetime > icu_admission_datetime &
+                          death_datetime <= icu_discharge_datetime,
+                        "Dead",
+                        "Alive"
+  ),
+  icu_los = as.numeric(difftime(icu_discharge_datetime,
+                                icu_admission_datetime,
+                                units = "days"
+  )),
+  hospital_outcome = if_else(!is.na(death_datetime) &
+                               death_datetime > hospital_admission_datetime &
+                               death_datetime <= hospital_discharge_datetime,
+                             "Dead",
+                             "Alive"
+  ),
+  admission_year = as.factor(year(icu_admission_datetime))
+)
 
 # Getting first ICU admission per patient.
 data <- data %>%
   arrange(person_id, visit_occurrence_id, icu_admission_datetime) %>%
   distinct(person_id, visit_occurrence_id, .keep_all = TRUE)
 
-# Applying exclusion criteria.
+# Excluding patients from countries with insufficent contributions.
+# # This is based on the ICNARC report. https://www.google.com/url?q=https://onlinereports.icnarc.org/Reports/2019/12/annual-quality-report-201819-for-adult-critical-care&sa=D&source=docs&ust=1698589035706375&usg=AOvVaw3Zu-zA_qy5M02R9HGsMLZP
+# First calculating contributions over time.
+patients_per_month_country <-
+  data %>%
+  mutate(
+    country_fac = factor(country),
+    admission_month = factor(lubridate::month(icu_admission_datetime))
+  ) %>%
+  group_by(country_fac, country, admission_year, admission_month,
+           .drop = FALSE
+  ) %>%
+  summarize(n_admissions = n()) %>%
+  arrange(country, admission_year, admission_month) %>%
+  group_by(country) %>%
+  mutate(
+    percent_change_last_month =
+      ((n_admissions - lag(n_admissions)) / lag(n_admissions)) * 100,
+    percent_change_next_month =
+      ((n_admissions - lead(n_admissions)) / lead(n_admissions)) * 100
+  ) %>%
+  # Only allowing months with admissions which haven't
+  # decreased more than 60% compared to previous or next month to
+  # count as contributions.
+  mutate(
+    contributed =
+      case_when(
+        n_admissions < 5 ~ FALSE,
+        percent_change_last_month < -60 ~ FALSE,
+        percent_change_next_month < -60 ~ FALSE,
+        TRUE ~ TRUE
+      ),
+    date = as.Date(paste0(
+      as.character(admission_year), "-",
+      as.character(admission_month), "-", "01"
+    ))
+  ) %>%
+  group_by(country, admission_year) %>%
+  summarise(months_contributed_in_year = sum(contributed))
+
+# Excluding patients with insufficent contributions
+data <- data %>%
+  left_join(patients_per_month_country,
+            by = c("country", "admission_year")) %>%
+  filter(months_contributed_in_year >= 6 | (months_contributed_in_year >= 3 &
+                                              admission_year == 2019))
+
+# Applying patient specific exclusion critera
 data <- data %>%
   filter(age >= 18) %>%
   # Removing diagsnoses which can't have APACHE II calculated on them.
   filter(!grepl("*burn*", primary_diagnosis_name, ignore.case=TRUE),
          !grepl("*cesarean section*", primary_diagnosis_name, ignore.case=TRUE),
-         !grepl("*ectopic pregnancy*", primary_diagnosis_name, ignore.case=TRUE),
+         !grepl("*ectopic pregnancy*", primary_diagnosis_name, ignore.case=TRUE)
          ) %>%
   # Excluding patients without APACHE II diagnoses
-  filter(!is.na(ap2_diag_coef)) %>%
-  # Calculating a few variables I need.
-  mutate(
-    icu_outcome = if_else(!is.na(death_datetime) &
-      death_datetime > icu_admission_datetime &
-      death_datetime <= icu_discharge_datetime,
-    "Dead",
-    "Alive"
-    ),
-    icu_los = as.numeric(difftime(icu_discharge_datetime,
-      icu_admission_datetime,
-      units = "days"
-    )),
-    hospital_outcome = if_else(!is.na(death_datetime) &
-                            death_datetime > hospital_admission_datetime &
-                            death_datetime <= hospital_discharge_datetime,
-                          "Dead",
-                          "Alive"
-    ),
-    admission_year = as.factor(year(icu_admission_datetime))
-  )
+  filter(!is.na(ap2_diag_coef))
 
 
-##### Calculating apache II score.
+
+# APACHE II score and prob ------------------------------------------------
 data <- fix_apache_ii_units(data)
 data <- fix_implausible_values_apache_ii(data)
 
@@ -238,7 +290,7 @@ pred <- pred[-which(rownames(pred) %in% c(
 )), ]
 
 mice_data <- mice(mice_data,
-  pred = pred, m = 30, maxit = 100,
+  pred = pred, m = 5, maxit = 5,
   method = "pmm", seed = 100
 )
 
