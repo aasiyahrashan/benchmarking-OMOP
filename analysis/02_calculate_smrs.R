@@ -143,9 +143,9 @@ output <- get_median_iqr(data, "admission_year", "icu_los",
   round = 2
 )
 output <- get_n_percent_value(data, "admission_year", "hospital_outcome",
-                              "Dead", "Hospital mortality",
-                              output,
-                              round = 2
+  "Dead", "Hospital mortality",
+  output,
+  round = 2
 )
 # writing the output data frame to an excel file
 write.xlsx(output,

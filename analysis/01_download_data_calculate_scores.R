@@ -131,26 +131,26 @@ if (dataset_name == "CCAA") {
 
 # Calculating variables needed for later
 data <- data %>%
-mutate(
-  icu_outcome = if_else(!is.na(death_datetime) &
-                          death_datetime > icu_admission_datetime &
-                          death_datetime <= icu_discharge_datetime,
-                        "Dead",
-                        "Alive"
-  ),
-  icu_los = as.numeric(difftime(icu_discharge_datetime,
-                                icu_admission_datetime,
-                                units = "days"
-  )),
-  hospital_outcome = if_else((!is.na(death_datetime) &
-                               death_datetime > hospital_admission_datetime &
-                               death_datetime <= hospital_discharge_datetime)
-                             | icu_outcome == "Dead",
-                             "Dead",
-                             "Alive"
-  ),
-  admission_year = as.factor(year(icu_admission_datetime))
-)
+  mutate(
+    icu_outcome = if_else(!is.na(death_datetime) &
+      death_datetime > icu_admission_datetime &
+      death_datetime <= icu_discharge_datetime,
+    "Dead",
+    "Alive"
+    ),
+    icu_los = as.numeric(difftime(icu_discharge_datetime,
+      icu_admission_datetime,
+      units = "days"
+    )),
+    hospital_outcome = if_else((!is.na(death_datetime) &
+      death_datetime > hospital_admission_datetime &
+      death_datetime <= hospital_discharge_datetime) |
+      icu_outcome == "Dead",
+    "Dead",
+    "Alive"
+    ),
+    admission_year = as.factor(year(icu_admission_datetime))
+  )
 
 # Getting first ICU admission per patient.
 data <- data %>%
@@ -167,7 +167,7 @@ patients_per_month_country <-
     admission_month = factor(lubridate::month(icu_admission_datetime))
   ) %>%
   group_by(country_fac, country, admission_year, admission_month,
-           .drop = FALSE
+    .drop = FALSE
   ) %>%
   summarize(n_admissions = n()) %>%
   arrange(country, admission_year, admission_month) %>%
@@ -200,18 +200,20 @@ patients_per_month_country <-
 # Excluding patients with insufficent contributions
 data <- data %>%
   left_join(patients_per_month_country,
-            by = c("country", "admission_year")) %>%
+    by = c("country", "admission_year")
+  ) %>%
   filter(months_contributed_in_year >= 6 | (months_contributed_in_year >= 3 &
-                                              admission_year == 2019))
+    admission_year == 2019))
 
 # Applying patient specific exclusion critera
 data <- data %>%
   filter(age >= 18) %>%
   # Removing diagsnoses which can't have APACHE II calculated on them.
-  filter(!grepl("*burn*", primary_diagnosis_name, ignore.case=TRUE),
-         !grepl("*cesarean section*", primary_diagnosis_name, ignore.case=TRUE),
-         !grepl("*ectopic pregnancy*", primary_diagnosis_name, ignore.case=TRUE)
-         ) %>%
+  filter(
+    !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE),
+    !grepl("*cesarean section*", primary_diagnosis_name, ignore.case = TRUE),
+    !grepl("*ectopic pregnancy*", primary_diagnosis_name, ignore.case = TRUE)
+  ) %>%
   # Excluding patients without APACHE II diagnoses
   filter(!is.na(ap2_diag_coef))
 
@@ -291,7 +293,7 @@ pred <- pred[-which(rownames(pred) %in% c(
 )), ]
 
 mice_data <- mice(mice_data,
-  pred = pred, m = 5, maxit = 5,
+  pred = pred, m = 30, maxit = 100,
   method = "pmm", seed = 100
 )
 
