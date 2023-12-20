@@ -142,9 +142,10 @@ mutate(
                                 icu_admission_datetime,
                                 units = "days"
   )),
-  hospital_outcome = if_else(!is.na(death_datetime) &
+  hospital_outcome = if_else((!is.na(death_datetime) &
                                death_datetime > hospital_admission_datetime &
-                               death_datetime <= hospital_discharge_datetime,
+                               death_datetime <= hospital_discharge_datetime)
+                             | icu_outcome == "Dead",
                              "Dead",
                              "Alive"
   ),
