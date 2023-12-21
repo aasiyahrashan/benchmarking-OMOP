@@ -100,6 +100,7 @@ if (dataset_name == "CCAA") {
     ap2_coefs_path,
     implementation_asia_path,
     implementation_africa_path,
+    units_of_measure_path,
     output_path
   )
 }

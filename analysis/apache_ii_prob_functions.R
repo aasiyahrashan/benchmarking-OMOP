@@ -36,6 +36,7 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
                                    ap2_path, ap2_coefs_path,
                                    implementation_asia_path,
                                    implementation_africa_path,
+                                   units_of_measure_path,
                                    output_path) {
   # Only downloading the data if it doesn't already exist.
   files_dont_exist <-
@@ -44,8 +45,9 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
       glue("{output_path}/data/snomed_ap4.csv"),
       glue("{output_path}/data/ap2.csv"),
       glue("{output_path}/data/ap2_coefs.csv"),
-      glue("{output_path}/data/all_implementation.csv")
-    )
+      glue("{output_path}/data/all_implementation.csv"),
+      glue("{output_path}/data/measures.csv")
+      )
 
   if (any(files_dont_exist)) {
     googlesheets4::gs4_auth(email = "*@nicslk.com")
@@ -101,6 +103,13 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
 
     rbind(asia, africa) %>%
       write_csv(file = glue("{output_path}/data/all_implementation.csv"))
+
+    read_sheet(units_of_measure_path, sheet = "ProposedFormat") %>%
+      janitor::clean_names() %>%
+      rename_with(~paste0(., "_measure"),
+                  !contains(c("registry", "hospital_name",
+                              "icu_name", "unit_id"))) %>%
+      write_csv(file = glue("{output_path}/data/measures.csv"))
   }
 }
 
