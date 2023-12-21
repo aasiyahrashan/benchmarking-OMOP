@@ -280,17 +280,14 @@ mice_data <- data %>%
 pred <- make.predictorMatrix(mice_data)
 
 #### Removing variables from the prediction.
-pred <- pred[, -which(colnames(pred) %in% c(
-  "person_id", "visit_occurrence_id",
-  "visit_detail_id", "admission_year",
-  "ap2_diag_coef"
-))]
+excl_vars <-
+  c("person_id", "visit_occurrence_id", "visit_detail_id",
+    "admission_year", "ap2_diag_coef")
+if(!length(unique(data$country)) > 1) excl_vars <- append(excl_vars, "country")
 
-pred <- pred[-which(rownames(pred) %in% c(
-  "person_id", "visit_occurrence_id",
-  "visit_detail_id", "admission_year",
-  "ap2_diag_coef"
-)), ]
+pred <- pred[, -which(colnames(pred) %in% excl_vars)]
+
+pred <- pred[-which(rownames(pred) %in% excl_vars), ]
 
 mice_data <- mice(mice_data,
   pred = pred, m = 30, maxit = 100,
