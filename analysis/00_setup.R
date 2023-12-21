@@ -26,7 +26,7 @@ conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag", "dplyr")
 
 # Benchmark date range defining -------------------------------------------
-start_date <- "2019-01-01"
+start_date <- "2019-07-01"
 end_date <- "2022-12-31"
 output_path <- "."
 
