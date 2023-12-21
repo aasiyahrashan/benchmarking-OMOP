@@ -65,11 +65,18 @@ if (!file.exists(concepts_path)) {
   stop(glue("ERROR - fill in {dataset_name}_concepts.csv before rerunning"))
 }
 
-##### Sourcing function scripts and running analysis.
+## Sourcing function scripts and running analysis.
 source("analysis/connection_parameters.R")
 source("analysis/inclusion_criteria_functions.R")
 source("analysis/apache_ii_prob_functions.R")
 source("analysis/smr_graph_functions.R")
 
+## Analysis on OMOP data
 source("analysis/01_download_data_calculate_scores.R")
 source("analysis/02_calculate_smrs.R")
+
+## Analysis on source data (separate betwen CCAA and NICE)
+if(dataset_name == "CCAA"){
+  source("analysis/CCAA source data analysis/source_apache_calculation_functions.R")
+  source("analysis/CCAA source data analysis/01_source_analysis.R")
+}
