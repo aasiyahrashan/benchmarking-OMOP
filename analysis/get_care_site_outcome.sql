@@ -16,7 +16,7 @@ INNER JOIN @schema.visit_occurrence vo
 LEFT JOIN @schema.visit_detail vd
 	ON p.person_id = vd.person_id
 --- Getting care site information
-INNER JOIN @schema.care_site cs
+LEFT JOIN @schema.care_site cs
 	ON p.care_site_id = cs.care_site_id
 --- Getting death information.
 LEFT JOIN @schema.death d
