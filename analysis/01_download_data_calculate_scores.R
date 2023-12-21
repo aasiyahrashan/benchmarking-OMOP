@@ -25,15 +25,20 @@ data <- get_score_variables(
 )
 
 ###### Getting care site and death data and merging with main data set.
+# Editing date arugments to add single quotes for SQL
+start_date_sql <- single_quote(start_date)
+end_date_sql <- single_quote(end_date)
+
 raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
   SqlRender::translate(tolower(dialect)) %>%
   SqlRender::render(
     schema = schema,
-    start_date = start_date,
-    end_date = end_date
+    start_date = start_date_sql,
+    end_date = end_date_sql
   )
 
 outcome_data <- dbGetQuery(conn, raw_sql)
+
 data <- left_join(data,
   outcome_data,
   by = c(
@@ -51,8 +56,8 @@ raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
   SqlRender::render(
     dbname = dbname,
     schema = schema,
-    start_date = start_date,
-    end_date = end_date
+    start_date = start_date_sql,
+    end_date = end_date_sql
   )
 
 #### Running the query
@@ -100,7 +105,7 @@ if (dataset_name == "CCAA") {
 }
 
 
-### This dataset needs variables called primary_diagnosis_name and ap_diag_coef.
+# This needs to include variables called primary_diagnosis_name and ap_diag_coef.
 coef_data <- get_apache_ii_coefficents(diag_data, dataset_name, output_path)
 data <- left_join(data,
   coef_data,
@@ -114,28 +119,18 @@ data <- left_join(data,
 save(data, file = "data/01_orig_data.RData")
 save(diag_data, file = "data/02_diag_data.RData")
 
-################ Starting data analysis.
+
+# Data analysis -----------------------------------------------------------
 load("data/01_orig_data.RData")
 
-###### Applying exclusion critera.
+
+# Exclusion criteria ------------------------------------------------------
 if (dataset_name == "CCAA") {
   data <- apply_ccaa_specific_exclusions(data, output_path)
 }
 
+# Calculating variables needed for later
 data <- data %>%
-  filter(age >= 18) %>%
-  ###### For other datasets, replace with diagnosis name.
-  ### FOR CCAA (Ensure this works for visit detail number 60186, person 59355).
-  filter(!grepl("*burn*",
-    if (dataset_name == "CCAA") {
-      extracted_apache_diag
-      ##### AASIYAH REMEMBER TO FIX FOR SNOMED.
-    } else {
-      primary_diagnosis_name
-    },
-    ignore.case = TRUE
-  )) %>%
-  # Calculating a few variables I need.
   mutate(
     icu_outcome = if_else(!is.na(death_datetime) &
       death_datetime > icu_admission_datetime &
@@ -147,11 +142,84 @@ data <- data %>%
       icu_admission_datetime,
       units = "days"
     )),
+    hospital_outcome = if_else((!is.na(death_datetime) &
+      death_datetime > hospital_admission_datetime &
+      death_datetime <= hospital_discharge_datetime) |
+      icu_outcome == "Dead",
+    "Dead",
+    "Alive"
+    ),
     admission_year = as.factor(year(icu_admission_datetime))
   )
 
+# Getting first ICU admission per patient.
+data <- data %>%
+  arrange(person_id, visit_occurrence_id, icu_admission_datetime) %>%
+  distinct(person_id, visit_occurrence_id, .keep_all = TRUE)
 
-##### Calculating apache II score.
+# Excluding patients from countries with insufficent contributions.
+# # This is based on the ICNARC report. https://www.google.com/url?q=https://onlinereports.icnarc.org/Reports/2019/12/annual-quality-report-201819-for-adult-critical-care&sa=D&source=docs&ust=1698589035706375&usg=AOvVaw3Zu-zA_qy5M02R9HGsMLZP
+# First calculating contributions over time.
+patients_per_month_country <-
+  data %>%
+  mutate(
+    country_fac = factor(country),
+    admission_month = factor(lubridate::month(icu_admission_datetime))
+  ) %>%
+  group_by(country_fac, country, admission_year, admission_month,
+    .drop = FALSE
+  ) %>%
+  summarize(n_admissions = n()) %>%
+  arrange(country, admission_year, admission_month) %>%
+  group_by(country) %>%
+  mutate(
+    percent_change_last_month =
+      ((n_admissions - lag(n_admissions)) / lag(n_admissions)) * 100,
+    percent_change_next_month =
+      ((n_admissions - lead(n_admissions)) / lead(n_admissions)) * 100
+  ) %>%
+  # Only allowing months with admissions which haven't
+  # decreased more than 60% compared to previous or next month to
+  # count as contributions.
+  mutate(
+    contributed =
+      case_when(
+        n_admissions < 5 ~ FALSE,
+        percent_change_last_month < -60 ~ FALSE,
+        percent_change_next_month < -60 ~ FALSE,
+        TRUE ~ TRUE
+      ),
+    date = as.Date(paste0(
+      as.character(admission_year), "-",
+      as.character(admission_month), "-", "01"
+    ))
+  ) %>%
+  group_by(country, admission_year) %>%
+  summarise(months_contributed_in_year = sum(contributed))
+
+# Excluding patients with insufficent contributions
+data <- data %>%
+  left_join(patients_per_month_country,
+    by = c("country", "admission_year")
+  ) %>%
+  filter(months_contributed_in_year >= 6 | (months_contributed_in_year >= 3 &
+    admission_year == 2019))
+
+# Applying patient specific exclusion critera
+data <- data %>%
+  filter(age >= 18) %>%
+  # Removing diagsnoses which can't have APACHE II calculated on them.
+  filter(
+    !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE),
+    !grepl("*cesarean section*", primary_diagnosis_name, ignore.case = TRUE),
+    !grepl("*ectopic pregnancy*", primary_diagnosis_name, ignore.case = TRUE)
+  ) %>%
+  # Excluding patients without APACHE II diagnoses
+  filter(!is.na(ap2_diag_coef))
+
+
+
+# APACHE II score and prob ------------------------------------------------
 data <- fix_apache_ii_units(data)
 data <- fix_implausible_values_apache_ii(data)
 
@@ -191,14 +259,19 @@ apache_vars <- c(
   "max_hematocrit", "min_hr", "max_hr", "min_rr", "max_rr", "min_ph",
   "max_ph", "min_bicarbonate", "max_bicarbonate", "min_sodium",
   "max_sodium", "min_potassium", "max_potassium", "min_gcs",
-  "min_creatinine", "max_creatinine", "max_sbp", "min_sbp",
-  "max_dbp", "min_dbp", "count_comorbidity", "count_renal_failure",
+  "min_creatinine", "max_creatinine", "count_comorbidity", "count_renal_failure",
   "count_emergency_admission"
 )
 
+if ("max_sbp" %in% colnames(data)) {
+  apache_vars <- append(apache_vars, c("max_sbp", "min_sbp", "max_dbp", "min_dbp"))
+} else {
+  apache_vars <- append(apache_vars, c("max_map", "min_map"))
+}
+
 mice_data <- data %>%
   select(
-    person_id, visit_occurrence_id, visit_detail_id, care_site_id,
+    person_id, visit_occurrence_id, visit_detail_id, country,
     admission_year, age, gender, icu_outcome, icu_los, !!apache_vars,
     ap2_diag_coef
   )
@@ -207,18 +280,14 @@ mice_data <- data %>%
 pred <- make.predictorMatrix(mice_data)
 
 #### Removing variables from the prediction.
-#### TODO - Include ICU as a categorical predictor variable.
-pred <- pred[, -which(colnames(pred) %in% c(
-  "person_id", "visit_occurrence_id",
-  "visit_detail_id", "care_site_id", "admission_year",
-  "ap2_diag_coef"
-))]
+excl_vars <-
+  c("person_id", "visit_occurrence_id", "visit_detail_id",
+    "admission_year", "ap2_diag_coef")
+if(!length(unique(data$country)) > 1) excl_vars <- append(excl_vars, "country")
 
-pred <- pred[-which(rownames(pred) %in% c(
-  "person_id", "visit_occurrence_id",
-  "visit_detail_id", "care_site_id", "admission_year",
-  "ap2_diag_coef"
-)), ]
+pred <- pred[, -which(colnames(pred) %in% excl_vars)]
+
+pred <- pred[-which(rownames(pred) %in% excl_vars), ]
 
 mice_data <- mice(mice_data,
   pred = pred, m = 30, maxit = 100,

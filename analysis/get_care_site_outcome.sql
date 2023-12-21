@@ -2,8 +2,10 @@ SELECT p.person_id
      ,p.person_source_value -- for debugging only. Not required for the main analysis.
 	   ,vo.visit_occurrence_id
 	   ,vd.visit_detail_id
-       ,COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date, vo.visit_start_datetime, vo.visit_start_date) AS icu_admission_datetime
-       ,COALESCE(vd.visit_detail_end_datetime,   vd.visit_detail_start_date, vo.visit_end_datetime,   vo.visit_start_date) AS icu_discharge_datetime
+     ,COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date, vo.visit_start_datetime, vo.visit_start_date) AS icu_admission_datetime
+     ,COALESCE(vd.visit_detail_end_datetime,   vd.visit_detail_start_date, vo.visit_end_datetime,   vo.visit_start_date) AS icu_discharge_datetime
+	   ,COALESCE(vo.visit_start_datetime, vo.visit_start_date) AS hospital_admission_datetime
+     ,COALESCE(vo.visit_end_datetime,   vo.visit_end_date) AS hospital_discharge_datetime
 	   ,cs.care_site_id
 	   ,cs.care_site_name
 	   ,d.death_datetime
@@ -14,10 +16,10 @@ INNER JOIN @schema.visit_occurrence vo
 LEFT JOIN @schema.visit_detail vd
 	ON p.person_id = vd.person_id
 --- Getting care site information
-INNER JOIN @schema.care_site cs
+LEFT JOIN @schema.care_site cs
 	ON p.care_site_id = cs.care_site_id
 --- Getting death information.
 LEFT JOIN @schema.death d
 	ON p.person_id = d.person_id
-WHERE COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date, vo.visit_start_datetime, vo.visit_start_date) >= '@start_date'
-  AND COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date, vo.visit_start_datetime, vo.visit_start_date) <= '@end_date'
+WHERE COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date, vo.visit_start_datetime, vo.visit_start_date) >= @start_date
+  AND COALESCE(vd.visit_detail_start_datetime, vd.visit_detail_start_date, vo.visit_start_datetime, vo.visit_start_date) <= @end_date
