@@ -86,7 +86,9 @@ apply_ccaa_specific_exclusions <- function(data, output_path) {
       !grepl("*Obstetric ICU*", `ICU Name`, ignore.case = TRUE),
       !grepl("*Maternal HDU*", `ICU Name`, ignore.case = TRUE),
       !grepl("EU", `ICU Name`, ignore.case = TRUE),
-      !grepl("ED", `ICU Name`, ignore.case = TRUE)
+      !grepl("ED", `ICU Name`, ignore.case = TRUE),
+      # Adding this for source analysis - excluding test units.
+      !grepl("Test Unit", `ICU Name`, ignore.case = TRUE)
     )
 
   ## Joining to the main dataset so only patients admitted to allowed units
