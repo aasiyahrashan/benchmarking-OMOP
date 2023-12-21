@@ -10,25 +10,39 @@
 #' @import glue
 #' @export
 apply_nice_specific_exclusions <- function(conn, data) {
-  raw_sql <- glue(
-    "SELECT o.person_id
-            ,o.visit_occurrence_id
-            ,o.visit_detail_id
-    FROM NICEOMOP.omop.observation o
-    WHERE o.observation_datetime >= '2019-01-01'
-		AND o.observation_datetime <= '2023-01-01'
-		AND observation_concept_id = 2000000014"
-  )
+  # Selects patients with nice_apache_excluded flag (concept_id = 2000000014)
+  raw_sql <- glue("SELECT DISTINCT person_id
+                                   ,visit_occurrence_id
+                                   ,visit_detail_id
+                     FROM NICEOMOP.omop.observation
+                    WHERE observation_datetime >= '2019-01-01'
+                      AND observation_datetime <= '2023-01-01'
+                      AND observation_concept_id = 2000000014")
 
-  nice_apache_exclusions_dataset <- dbGetQuery(conn, raw_sql)
-  anti_join(data, nice_apache_exclusions_dataset,
-    by = c(
-      "person_id",
-      "visit_occurrence_id",
-      "visit_detail_id"
-    )
-  ) %>%
+  nice_apache_exclusion_dataset <- dbGetQuery(conn, raw_sql)
+
+  # Selects patients with hospital admissions, but
+  # without ICU admissions (cutoff 2023)
+  raw_sql <- glue("SELECT vo.person_id,
+                          vo.visit_occurrence_id
+                     FROM NICEOMOP.omop.visit_occurrence AS vo
+          LEFT OUTER JOIN NICEOMOP.omop.visit_detail AS vd
+                       ON vd.person_id = vo.person_id
+                    WHERE vd.visit_detail_id IS NULL")
+  nice_missing_dataset <- dbGetQuery(conn, raw_sql)
+
+  # Remove excluded icu admissions and missing icu admissions
+  data <- data %>%
+    anti_join(nice_apache_exclusion_dataset,
+              by = c("person_id",
+                     "visit_occurrence_id",
+                     "visit_detail_id")) %>%
+    anti_join(nice_missing_dataset,
+              by = c("person_id",
+                     "visit_occurrence_id")) %>%
     mutate(country = letters[1])
+
+  data
 }
 
 #' CCAA specific patient exclusion
