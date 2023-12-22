@@ -256,7 +256,7 @@ freetext_mapping_to_snomed <- function(admission_data, output_path,
                      "visit_occurrence_id",
                      "visit_detail_id")
   } else if (source == "source"){
-    unique_vars <- "patient_id"
+    unique_vars <- c("patient_id")
   }
 
   freetext_mapped <- read_csv(glue("{output_path}/data/freetext_to_snomed.csv"))
@@ -267,7 +267,7 @@ freetext_mapping_to_snomed <- function(admission_data, output_path,
       extracted_snomed_diag
     )) %>%
     left_join(freetext_mapped, by = c("extracted_snomed_diag" = "sourceName")) %>%
-    distinct(!!unique_vars,
+    distinct(!!sym(unique_vars),
       extracted_snomed_diag,
       .keep_all = TRUE
     ) %>%

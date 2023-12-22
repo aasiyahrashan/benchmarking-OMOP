@@ -164,7 +164,7 @@ unit_conversion_source <- function(admission, daily) {
 #' @param admission_data Needs to have data with unit conversions
 #' @import dplyr
 #' @noRd
-calculate_apache_ii_score_source_data <- function(admission_data) {
+calculate_apache_ii_score_source <- function(admission_data) {
   acute_renal_failure <- c("Renal failure, Mild", "Renal failure, Moderate to severe", "CKD requiring dialysis")
   comorbid_list <- c(
     "AIDS", "Hepatic disease, Moderate to severe", "Renal failure, Moderate to severe",
@@ -314,9 +314,7 @@ calculate_apache_ii_score_source_data <- function(admission_data) {
         Admission.comorbid_conditions2 %in% comorbid_list |
         Admission.comorbid_conditions3 %in% comorbid_list |
         Admission.comorbid_conditions4 %in% comorbid_list), 1, 0),
-      cond_chro = if_else((com_chro == 1 | Admission.severe_respiratory == "Yes" |
-        Admission.nyha_class_iv == "Yes" |
-        AdmissionAssessment.immunosuppressive_treatment == "Yes"), 1, 0),
+      cond_chro = if_else(com_chro == 1, 1, 0),
       chro_aps = case_when(
         cond_chro == 1 & Admission.diagnosis_type %in% c("non_operative", "Non operative") ~ 5,
         cond_chro == 1 & Admission.emergency_surgery == "Yes" & Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 5,
