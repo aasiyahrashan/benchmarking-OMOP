@@ -331,3 +331,75 @@ calculate_apache_ii_score_source <- function(admission_data) {
 
   admission_data
 }
+
+get_physiology_variable_availability_source <- function(data){
+
+  # First creating min and max variables based on real data.
+  data <- data %>%
+    mutate(max_hr = pmax(Admission.heart_rate, AdmissionAssessment.heart_rate, na.rm = TRUE),
+    min_hr = pmin(Admission.heart_rate, AdmissionAssessment.heart_rate, na.rm = TRUE),
+    min_rr = pmin(Admission.respiratory_rate, AdmissionAssessment.respiratory_rate, na.rm = TRUE),
+    max_rr = pmax(Admission.respiratory_rate, AdmissionAssessment.respiratory_rate, na.rm = TRUE),
+    max_temp = pmax(Admission.temperature, AdmissionAssessment.temperature, na.rm = TRUE),
+    min_temp = pmin(Admission.temperature, AdmissionAssessment.temperature, na.rm = TRUE),
+    min_wcc = pmin(AdmissionAssessment.white_blood_cells, na.rm = TRUE),
+    max_wcc = pmax(AdmissionAssessment.white_blood_cells, na.rm = TRUE),
+    max_sbp = pmax(Admission.systolic_blood_pressure,
+                   AdmissionAssessment.systolic_blood_pressure, na.rm = TRUE),
+    min_sbp = pmin(Admission.systolic_blood_pressure,
+                   AdmissionAssessment.systolic_blood_pressure, na.rm = TRUE),
+    min_dbp = pmin(Admission.diastolic_blood_pressure,
+                   AdmissionAssessment.diastolic_blood_pressure, na.rm = TRUE),
+    max_dbp = pmax(Admission.diastolic_blood_pressure,
+                   AdmissionAssessment.diastolic_blood_pressure, na.rm = TRUE),
+    max_fio2 = pmax(AdmissionAssessment.fraction_inspired_oxygen,
+                    SariAdmissionAssessment.fraction_inspired_oxygen, na.rm = TRUE),
+    min_fio2 = pmin(AdmissionAssessment.fraction_inspired_oxygen,
+                    SariAdmissionAssessment.fraction_inspired_oxygen, na.rm = TRUE),
+    max_pao2 = pmax(AdmissionAssessment.partial_pressure_arterial_oxygen,
+                    SariAdmissionAssessment.partial_pressure_arterial_oxygen ,na.rm = TRUE),
+    min_pao2 = pmin(AdmissionAssessment.partial_pressure_arterial_oxygen,
+                    SariAdmissionAssessment.partial_pressure_arterial_oxygen, na.rm = TRUE),
+    min_pcao2 = pmin(AdmissionAssessment.partial_pressure_carbon_dioxide, na.rm = TRUE),
+    max_pcao2 = pmax(AdmissionAssessment.partial_pressure_carbon_dioxide, na.rm = TRUE),
+    max_hematocrit = pmax(AdmissionAssessment.packed_cell_volume, na.rm = TRUE),
+    min_hematocrit = pmin(AdmissionAssessment.packed_cell_volume, na.rm = TRUE),
+    min_ph = pmin(AdmissionAssessment.arterial_ph, na.rm = TRUE),
+    max_ph = pmax(AdmissionAssessment.arterial_ph, na.rm = TRUE),
+    max_sodium = pmax(AdmissionAssessment.serum_sodium, na.rm = TRUE),
+    min_sodium = pmin(AdmissionAssessment.serum_sodium, na.rm = TRUE),
+    min_potassium = pmin(AdmissionAssessment.serum_potassium, na.rm = TRUE),
+    max_potassium = pmax(AdmissionAssessment.serum_potassium, na.rm = TRUE),
+    max_bicarbonate = pmax(AdmissionAssessment.bicarbonate,
+                           AdmissionAssessment.serum_bicarbonate, na.rm = TRUE),
+    min_bicarbonate = pmin(AdmissionAssessment.bicarbonate,
+                           AdmissionAssessment.serum_bicarbonate, na.rm = TRUE),
+    min_creatinine = pmin(AdmissionAssessment.serum_creatinine,
+                          SariAdmissionAssessment.serum_creatinine, na.rm = TRUE),
+    max_creatinine = pmax(AdmissionAssessment.serum_creatinine,
+                          SariAdmissionAssessment.serum_creatinine, na.rm = TRUE),
+    gcs_min = AdmissionAssessment.gcs_verbal)
+
+  availability <-
+    data %>%
+    select(starts_with(c("max_", "apache_ii_score"))) %>%
+    rename_all(~ stringr::str_replace(., "^max_", "")) %>%
+    rename_all(~ stringr::str_replace(., "^apache_ii_score_no_imputation",
+                                      "APACHE-II-no-imputation")) %>%
+    rename_all(~ stringr::str_replace(., "^apache_ii_score", "APACHE-II")) %>%
+    summarise_all(list(
+      availability = ~ round(100 * sum(!is.na(.)) / nrow(data), 2),
+      min = ~ if (all(is.na(.))) NA_real_ else round(min(., na.rm = TRUE), 2),
+      max = ~ if (all(is.na(.))) NA_real_ else round(max(., na.rm = TRUE), 2)
+    )) %>%
+    pivot_longer(
+      cols = names(.),
+      names_to = c("variable", "summary"),
+      names_sep = "_"
+    ) %>%
+    pivot_wider(names_from = "summary", values_from = "value") %>%
+    arrange(variable)
+
+  availability
+
+}

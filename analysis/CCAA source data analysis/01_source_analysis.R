@@ -1,6 +1,9 @@
 # Reading data in ---------------------------------------------------------
 data <- read_csv("data/CoreForms.csv")
+sari_data <- read_csv("data/SariAdmissionAssessment.csv")
 units_of_measure <- read_csv(glue("{output_path}/data/measures.csv"))
+
+data <- left_join(data, sari_data)
 
 # Getting diagnosis data and diagnosis coefficents ------------------------
 coef_data <- get_apache_ii_coefficents(data,
@@ -98,5 +101,95 @@ data <- unit_conversion_source(admission = data)
 data <- calculate_apache_ii_score_source(data)
 data <- calculate_apache_ii_prob(data)
 
+
+# Calculating SMRs --------------------------------------------------------
+smrs_ni <- data %>%
+  group_by(country, admission_year) %>%
+  summarise(
+    total = sum(!is.na(patient_id)),
+    # SMRs
+    median_ap2_score = median(apache_ii_score, na.rm = TRUE),
+    median_ap2_prob = median(apache_ii_prob * 100, na.rm = TRUE),
+    expected_ap2 = median(apache_ii_prob, na.rm = TRUE) * total,
+    n_dead = sum(Discharge.discharge_status == "Dead", na.rm = TRUE),
+    percent_dead = 100 * sum(Discharge.discharge_status == "Dead", na.rm = TRUE) / total,
+    smr_ap2 = n_dead / expected_ap2
+  ) %>%
+  ungroup()
+
 # Output tables -----------------------------------------------------------
-# Saving to the same output file for easy reference
+output <- make_output_df(data, "admission_year")
+output <- get_count(
+  data, "admission_year", "patient_id",
+  "Number of patients", output
+)
+output <- get_unique_count(
+  data, "admission_year", "country",
+  "Number of countries", output
+)
+output <- get_median_iqr(data, "admission_year", "Admission.age",
+                         "Age", output,
+                         round = 2
+)
+output <- get_n_percent_value(data, "admission_year", "Admission.gender", "Male",
+                              "Male", output,
+                              round = 2
+)
+
+output <- get_median_iqr(data, "admission_year",
+                         "apache_ii_score", "APACHE II score", output,
+                         round = 2
+)
+output <- get_median_iqr(data, "admission_year", "apache_ii_prob",
+                         "APACHE II probability of mortality", output,
+                         round = 2
+)
+
+#### SMR. Using the country dataset.
+#### Have to create the row separately and paste it to the output dataset.
+smr_ni_output <- make_output_df(smrs_ni, "admission_year")
+smr_ni_output <- get_median_iqr(smrs_ni, "admission_year",
+                                "smr_ap2", "APACHE II SMR Median (IQR)", smr_ni_output,
+                                round = 2
+)
+names(smr_ni_output) <- names(output)
+output <- rbind(output, smr_ni_output[1, ])
+
+### Outcomes
+output <- get_n_percent_value(data, "admission_year",
+                              "Discharge.discharge_status",
+                              "Dead", "ICU mortality",
+                              output,
+                              round = 2
+)
+output <- get_median_iqr(data, "admission_year", "icu_los",
+                         "ICU length of stay (Days)", output,
+                         round = 2
+)
+output <- get_n_percent_value(data, "admission_year", "hospital_outcome",
+                              "Dead", "Hospital mortality",
+                              output,
+                              round = 2
+)
+# writing the output data frame to an excel file
+wb <- loadWorkbook("output/01_output.xlsx")
+addWorksheet(wb, "3_source_data_tableone")
+writeData(wb, sheet = "3_source_data_tableone", x = output, borders = "columns")
+setColWidths(wb, "3_source_data_tableone", cols = 1:6, widths = "auto")
+saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
+
+# Getting availability and range of the physiology components of the APACHE II score.
+availability <- get_physiology_variable_availability_source(data)
+
+# Writing the output out.
+wb <- loadWorkbook("output/01_output.xlsx")
+addWorksheet(wb, "4_availability_apache_source")
+writeData(wb, sheet = "4_availability_apache_source", x = availability,
+          borders = "columns")
+setColWidths(wb, "4_availability_apache_source", cols = 1:6, widths = "auto")
+saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
+
+# Funnel plot of SMRs NI.
+smr_graph(smrs_ni, "expected_ap2", "APACHE II normal imputation")
+ggsave("output/06_funnel_plot_source_data.png")
+
