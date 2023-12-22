@@ -321,11 +321,11 @@ calculate_apache_ii_score_source <- function(admission_data) {
         cond_chro == 1 & Admission.emergency_surgery == "No" & Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 2,
         TRUE ~ 0
       ),
-      apache_score = temp_aps + wbc_aps + map_aps + AaDO2_aps + hmcrt_aps +
+      apache_ii_score = temp_aps + wbc_aps + map_aps + AaDO2_aps + hmcrt_aps +
         hr_aps + res_aps + artph_aps + sod_aps + pot_aps + hco3_aps +
         gcs_aps + creat_aps + age_aps + chro_aps
     ) %>%
-    select(patient_id, apache_score)
+    select(patient_id, apache_ii_score)
 
   admission_data <- left_join(admission_data, apache_ii, by = "patient_id")
 

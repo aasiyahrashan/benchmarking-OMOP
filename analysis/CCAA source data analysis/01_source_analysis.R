@@ -11,9 +11,12 @@ coef_data <- get_apache_ii_coefficents(data,
 data <- left_join(data, coef_data, by = "patient_id")
 
 # Applying exclusion criteria ---------------------------------------------
-# First, calculating variables I need
+# First, calculating variables I need. Some just renames to work with OMOP functions
 data <- data %>%
-  mutate(care_site_name = unitId,
+  mutate(
+    care_site_name = unitId,
+    # NOTE - This needs fixing - but leaving it for the moment
+    emergency_admission = if_else(Admission.emergency_surgery == "Yes", 1, 0),
     icu_los = as.integer(difftime(Discharge.date_of_discharge, date_of_admission,
                                   units = "days")),
     hospital_outcome = if_else(Discharge.discharge_status_hos == "Dead" |
@@ -93,6 +96,7 @@ data <- data %>%
 data <- left_join(data, units_of_measure, by = c("unitId" = "unit_id"))
 data <- unit_conversion_source(admission = data)
 data <- calculate_apache_ii_score_source(data)
+data <- calculate_apache_ii_prob(data)
 
 # Output tables -----------------------------------------------------------
 # Saving to the same output file for easy reference
