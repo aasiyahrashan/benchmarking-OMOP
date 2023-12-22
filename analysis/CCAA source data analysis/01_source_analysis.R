@@ -1,5 +1,5 @@
 # Reading data in ---------------------------------------------------------
-data <- read_csv("data/CoreForms_Nepal.csv")
+data <- read_csv("data/CoreForms.csv")
 
 # Getting diagnosis data and diagnosis coefficents ------------------------
 coef_data <- get_apache_ii_coefficents(data,
