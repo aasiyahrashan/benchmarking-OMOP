@@ -54,9 +54,12 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
 
     # Downloading data and saving it to csv.
     print("Downloading mapping data")
-
-    read_excel(snomed_mapping_path, skip = 1, sheet = "Mapped") %>%
-      mutate(`Variable ID` = as.character(`Variable ID`)) %>%
+    column_types <- cols(
+      starts_with("Admission.snomed_diagnosis_concept_id") = col_character(),
+      .default = col_guess()
+    )
+    read_excel(snomed_mapping_path, skip = 1, sheet = "Mapped",
+               col_types = column_types) %>%
       write_csv(file = glue("{output_path}/data/snomed_ap4.csv"))
 
     freetext_mapped <- read_sheet(freetext_mapping_path) %>%
@@ -302,10 +305,15 @@ freetext_mapping_to_snomed <- function(admission_data, output_path,
 #' @importFrom glue glue
 #' @noRd
 snomed_to_apache_iv_mapping <- function(admission_data, output_path) {
+  # Specifying variable ID as a character.
+  column_types <- cols(
+    "Variable ID" = col_character(),
+    .default = col_guess()
+  )
   # Reading in the snomed to apache iv mapping sheets.
-  snomed_mapping <- read_csv(glue("{output_path}/data/snomed_ap4.csv")) %>%
+  snomed_mapping <- read_csv(glue("{output_path}/data/snomed_ap4.csv"),
+                             col_types = column_types) %>%
     mutate(
-      `Variable ID` = as.character(`Variable ID`),
       `Fully Specified Names (FSNs)` = clean_string_to_join(`Fully Specified Names (FSNs)`)
     ) %>%
     distinct(`Variable ID`, .keep_all = TRUE)

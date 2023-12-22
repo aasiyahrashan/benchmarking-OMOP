@@ -1,5 +1,10 @@
 # Reading data in ---------------------------------------------------------
-data <- read_csv("data/CoreForms.csv")
+# Specifying variable ID as a character.
+column_types <- cols(
+  starts_with("Admission.snomed_diagnosis_concept_id") = col_character(),
+  .default = col_guess()
+)
+data <- read_csv("data/CoreForms.csv", col_types = column_types)
 sari_data <- read_csv("data/SariAdmissionAssessment.csv")
 units_of_measure <- read_csv(glue("{output_path}/data/measures.csv"))
 
@@ -40,7 +45,7 @@ data <- data %>%
   filter(is.na(Admission.readmission) | Admission.readmission != "Yes") %>%
   # Excluding patients who wouldn't be in OMOP.
   filter(Admission.gender %in% c("Male", "Female")) %>%
-  filter(!is.na(Discharge.discharge_status))
+  filter(!is.na(Discharge.date_of_discharge))
 
 # Excluding patients from countries with insufficent contributions.
 patients_per_month_country <-
