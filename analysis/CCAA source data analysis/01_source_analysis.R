@@ -3,7 +3,10 @@ data <- read_csv("data/CoreForms.csv")
 sari_data <- read_csv("data/SariAdmissionAssessment.csv")
 units_of_measure <- read_csv(glue("{output_path}/data/measures.csv"))
 
-data <- left_join(data, sari_data)
+data <- left_join(data, sari_data,
+                  by = join_by(patient_id, unitId, hospitalId,
+                               date_of_admission, date_of_admission_hospital,
+                               registry))
 
 # Getting diagnosis data and diagnosis coefficents ------------------------
 coef_data <- get_apache_ii_coefficents(data,
@@ -16,6 +19,7 @@ data <- left_join(data, coef_data, by = "patient_id")
 # Applying exclusion criteria ---------------------------------------------
 # First, calculating variables I need. Some just renames to work with OMOP functions
 data <- data %>%
+  filter(date_of_admission >= start_date & date_of_admission <= end_date) %>%
   mutate(
     care_site_name = unitId,
     # NOTE - This needs fixing - but leaving it for the moment
