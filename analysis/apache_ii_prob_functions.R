@@ -267,7 +267,7 @@ freetext_mapping_to_snomed <- function(admission_data, output_path,
       extracted_snomed_diag
     )) %>%
     left_join(freetext_mapped, by = c("extracted_snomed_diag" = "sourceName")) %>%
-    distinct(!!sym(unique_vars),
+    distinct(!!!syms(unique_vars),
       extracted_snomed_diag,
       .keep_all = TRUE
     ) %>%
