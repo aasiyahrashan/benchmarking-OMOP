@@ -1,7 +1,15 @@
 # Reading data in ---------------------------------------------------------
 # Specifying variable ID as a character.
 column_types <- cols(
-  starts_with("Admission.snomed_diagnosis_concept_id") = col_character(),
+  "Admission.snomed_diagnosis_concept_id" = col_character(),
+  "Admission.snomed_diagnosis_concept_id1" = col_character(),
+  "Admission.snomed_diagnosis_concept_id2" = col_character(),
+  "Admission.snomed_diagnosis_concept_id3" = col_character(),
+  "Admission.snomed_diagnosis_concept_id4" = col_character(),
+  "Admission.snomed_diagnosis_concept_id5" = col_character(),
+  "Admission.snomed_diagnosis_concept_id6" = col_character(),
+  "Admission.snomed_diagnosis_concept_id7" = col_character(),
+  "Admission.snomed_diagnosis_concept_id8" = col_character(),
   .default = col_guess()
 )
 data <- read_csv("data/CoreForms.csv", col_types = column_types)
