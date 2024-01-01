@@ -54,12 +54,10 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
 
     # Downloading data and saving it to csv.
     print("Downloading mapping data")
-    column_types <- cols(
-      starts_with("Admission.snomed_diagnosis_concept_id") = col_character(),
-      .default = col_guess()
-    )
+
+    # Everything in this mapping sheet should be text.
     read_excel(snomed_mapping_path, skip = 1, sheet = "Mapped",
-               col_types = column_types) %>%
+               col_types = c("text")) %>%
       write_csv(file = glue("{output_path}/data/snomed_ap4.csv"))
 
     freetext_mapped <- read_sheet(freetext_mapping_path) %>%
