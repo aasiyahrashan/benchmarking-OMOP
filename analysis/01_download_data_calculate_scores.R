@@ -107,7 +107,8 @@ if (dataset_name == "CCAA") {
 
 
 # This needs to include variables called primary_diagnosis_name and ap_diag_coef.
-coef_data <- get_apache_ii_coefficents(diag_data, dataset_name, output_path)
+coef_data <- get_apache_ii_coefficents(diag_data, dataset_name,
+                                       output_path = output_path)
 data <- left_join(data,
   coef_data,
   by = c(
