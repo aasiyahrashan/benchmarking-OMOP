@@ -48,7 +48,11 @@ source_data <- left_join(source_data, coef_data, by = "patient_id")
 # Applying exclusion criteria ---------------------------------------------
 # First, calculating variables I need. Some just renames to work with OMOP functions
 source_data <- source_data %>%
-  filter(date_of_admission >= start_date & date_of_admission <= end_date) %>%
+  # For some reason, there are 4 ICU patients without ICU admision date filled.
+  filter(coalesce(date_of_admission,
+                  date_of_admission_hospital) >= start_date &
+           coalesce(date_of_admission,
+                    date_of_admission_hospital) <= end_date) %>%
   mutate(
     care_site_name = unitId,
     # NOTE - This needs fixing - but leaving it for the moment
