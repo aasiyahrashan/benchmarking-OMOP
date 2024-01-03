@@ -208,11 +208,11 @@ calculate_min_max_variables <- function(data){
            # NOTE - This needs fixing - but leaving it for the moment
            emergency_admission = case_when(
              Admission.diagnosis_type %in% c("non_operative", "Non operative") ~ 1,
-             Admission.emergency_surgery == "Yes" & A
+             Admission.emergency_surgery == "Yes" &
              Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 1,
              Admission.emergency_surgery == "No" &
                Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 0
-           )
+           ))
 
 }
 
@@ -287,94 +287,41 @@ unit_conversion_source <- function(admission, daily) {
 
     admission <- admission %>%
       mutate(
-        AdmissionAssessment.temperature = case_when(
-          temperature_measure == "°C" ~ AdmissionAssessment.temperature,
-          temperature_measure == "°F" ~ (AdmissionAssessment.temperature - 32) * 5 / 9
-        ),
-        AdmissionAssessment.white_blood_cells = case_when(
-          white_blood_cell_count_measure %in% c("cells/mm³", "cells/μL", "1000/mcgl") ~ AdmissionAssessment.white_blood_cells / 1000,
+        across(c(max_temp, min_temp) ~ case_when(
+          temperature_measure == "°C" ~ .x,
+          temperature_measure == "°F" ~ (.x - 32) * 5 / 9
+        )),
+        across(c(max_wcc, min_wcc) ~ case_when(
+          white_blood_cell_count_measure %in% c("cells/mm³", "cells/μL", "1000/mcgl") ~ .x / 1000,
           white_blood_cell_count_measure %in% c(
             "10^9/L", "10^3/mm³", "K/µL",
             "10^3/mm^3", "10^3/µL"
-          ) ~ AdmissionAssessment.white_blood_cells,
-          white_blood_cell_count_measure == "lakhs/mm³" ~ AdmissionAssessment.white_blood_cells * 100,
-          white_blood_cell_count_measure == "cells/L" ~ AdmissionAssessment.white_blood_cells * 0.000000001
-        ),
-        AdmissionAssessment.fraction_inspired_oxygen = case_when(
-          fi_o2_measure == "%" ~ AdmissionAssessment.fraction_inspired_oxygen * 0.01,
-          fi_o2_measure == "l/min" ~ (20 + 4 * AdmissionAssessment.fraction_inspired_oxygen) * 0.01,
-          fi_o2_measure == "/" ~ AdmissionAssessment.fraction_inspired_oxygen
-        ),
-        AdmissionAssessment.partial_pressure_arterial_oxygen = case_when(
-          pa_o2_measure == "mmHg" ~ AdmissionAssessment.partial_pressure_arterial_oxygen,
-          pa_o2_measure == "KPa" ~ AdmissionAssessment.partial_pressure_arterial_oxygen * 7.50062
-        ),
-        AdmissionAssessment.packed_cell_volume = case_when(
-          packed_cell_volume_measure == "%" ~ AdmissionAssessment.packed_cell_volume,
-          packed_cell_volume_measure %in% c("/", "L/L") ~ AdmissionAssessment.packed_cell_volume * 100
-        ),
-        AdmissionAssessment.serum_creatinine = case_when(
-          serum_creatinine_measure == "mg/dl" ~ AdmissionAssessment.serum_creatinine,
-          serum_creatinine_measure == "mg/L" ~ AdmissionAssessment.serum_creatinine * 0.1,
-          serum_creatinine_measure == "mmol/L" ~ AdmissionAssessment.serum_creatinine * 11.312,
-          serum_creatinine_measure == "μmol/L" ~ AdmissionAssessment.serum_creatinine * 0.0113
-        ),
-        AdmissionAssessment.hemoglobin = case_when(
-          haemoglobin_measure == "g/dl" ~ AdmissionAssessment.hemoglobin,
-          haemoglobin_measure == "g/L" ~ AdmissionAssessment.hemoglobin / 10
-        ),
-        AdmissionAssessment.blood_urea = case_when(
-          blood_urea_measure == "mmol/L" ~ AdmissionAssessment.blood_urea * 6.006,
-          blood_urea_measure == "μmol/L" ~ AdmissionAssessment.blood_urea * 0.0060,
-          blood_urea_measure == "mg/dl" ~ AdmissionAssessment.blood_urea,
-          blood_urea_measure == "mg/dL" ~ AdmissionAssessment.blood_urea,
-          blood_urea_measure == "g/L" ~ AdmissionAssessment.blood_urea * 100
-        )
+          ) ~ .x,
+          white_blood_cell_count_measure == "lakhs/mm³" ~ .x * 100,
+          white_blood_cell_count_measure == "cells/L" ~ .x * 0.000000001
+        )),
+        across(c(max_fio2, min_fio2) ~ case_when(
+          fi_o2_measure == "%" ~ .x * 0.01,
+          fi_o2_measure == "l/min" ~ (20 + 4 * .x) * 0.01,
+          fi_o2_measure == "/" ~ .x
+        )),
+        across(c(max_pao2, min_pao2) ~ case_when(
+          pa_o2_measure == "mmHg" ~ .x,
+          pa_o2_measure == "KPa" ~ .x * 7.50062
+        )),
+        across(c(max_hematocrit, min_hematocrit) ~ case_when(
+          packed_cell_volume_measure == "%" ~ .x,
+          packed_cell_volume_measure %in% c("/", "L/L") ~ .x * 100
+        )),
+        across(c(max_creatinine, min_creatinine) ~ case_when(
+          serum_creatinine_measure == "mg/dl" ~ .x,
+          serum_creatinine_measure == "mg/L" ~ .x * 0.1,
+          serum_creatinine_measure == "mmol/L" ~ .x * 11.312,
+          serum_creatinine_measure == "μmol/L" ~ .x * 0.0113
+        ))
       )
 
     output_data <- admission
-  } else if (!missing(daily)) {
-    columns_admission_daily <- c(
-      "DailyAssessment.temperature", "DailyAssessment.lowest_wcc",
-      "DailyAssessment.highest_wcc"
-    )
-
-    daily <- daily %>%
-      mutate(across(columns_admission_daily, as.numeric))
-
-    daily <- daily %>%
-      mutate(
-        DailyAssessment.temperature = if_else(
-          temperature_measure == "°C", DailyAssessment.temperature,
-          (DailyAssessment.temperature - 32) * (5 / 9)
-        ),
-        # WARNING - need conversion for K/µL.
-        DailyAssessment.lowest_wcc = case_when(
-          white_blood_cell_count_measure %in% c("cells/mm³", "cells/μL", "1000/mcgl") ~ DailyAssessment.lowest_wcc,
-          white_blood_cell_count_measure %in% c(
-            "10^9/L", "10^3/mm³", "K/µL", "10^3/mm^3",
-            "10^3/µL"
-          ) ~ DailyAssessment.lowest_wcc * 1000,
-          white_blood_cell_count_measure == "lakhs/mm³" ~ DailyAssessment.lowest_wcc * 100000,
-          white_blood_cell_count_measure == "cells/L" ~ DailyAssessment.lowest_wcc * 0.000001
-        ),
-        DailyAssessment.highest_wcc = case_when(
-          white_blood_cell_count_measure %in% c("cells/mm³", "cells/μL", "1000/mcgl") ~ DailyAssessment.highest_wcc,
-          white_blood_cell_count_measure %in% c(
-            "10^9/L", "10^3/mm³", "K/µL", "10^3/mm^3",
-            "10^3/µL"
-          ) ~ DailyAssessment.highest_wcc * 1000,
-          white_blood_cell_count_measure == "lakhs/mm³" ~ DailyAssessment.highest_wcc * 100000,
-          white_blood_cell_count_measure == "cells/L" ~ DailyAssessment.highest_wcc * 0.000001
-        ),
-        DailyAssessment.fraction_inspired_oxygen = case_when(
-          fi_o2_measure == "%" ~ DailyAssessment.fraction_inspired_oxygen * 0.01,
-          fi_o2_measure == "l/min" ~ (20 + 4 * DailyAssessment.fraction_inspired_oxygen) * 0.01,
-          fi_o2_measure == "/" ~ DailyAssessment.fraction_inspired_oxygen
-        )
-      )
-
-    output_data <- daily
   }
 
   output_data
