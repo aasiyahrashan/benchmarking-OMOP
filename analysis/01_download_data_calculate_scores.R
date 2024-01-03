@@ -71,8 +71,29 @@ if (dataset_name == "NICE") {
     filter(between(diagnosis_concept_id, 2000000074, 2000000127))
 }
 
-#### CCAA ones also need a separate SQL query
+#### CCAA exclusions also need a separate SQL query
 if (dataset_name == "CCAA") {
+
+  # Finding out if patients were readmitted to ICU
+  raw_sql <- glue("SELECT DISTINCT person_id
+                                   ,visit_occurrence_id
+                                   ,visit_detail_id
+                                   , observation_datetime as readmission_datetime
+                                   , value_as_string as readmission
+                     FROM cca_omop.observation
+                    WHERE observation_concept_id = 2000000042")
+
+  readmission_dataset <- dbGetQuery(conn, raw_sql)
+
+  # Removing readmissions
+  data <- data %>%
+    left_join(readmission_dataset,
+              by = c("person_id",
+                     "visit_occurrence_id",
+                     "visit_detail_id")) %>%
+    filter(!(readmission == "Yes" &
+               readmission_datetime == icu_admission_datetime))
+
   download_mapping_files(
     freetext_mapping_path,
     snomed_mapping_path,
