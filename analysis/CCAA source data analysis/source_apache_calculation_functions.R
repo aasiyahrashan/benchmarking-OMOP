@@ -1,3 +1,224 @@
+calculate_min_max_variables <- function(data){
+
+  # Defining comorbidity lists
+  acute_renal_failure <- c("Renal failure, Mild", "Renal failure, Moderate to severe", "CKD requiring dialysis")
+  comorbid_list <- c(
+    "AIDS", "Hepatic disease, Moderate to severe", "Renal failure, Moderate to severe",
+    "Respiratory disease, Severe moderate", "Leukemia", "Lymphoma", "Metastatic cancer",
+    "CKD requiring dialysis", "Cirrhosis", "GI bleeding", "Tumor", "Cerebrovascular disease"
+  )
+
+
+  # Creating min and max variables for APACHE II calculation
+  data <- data %>%
+    mutate(max_hr = pmax(Admission.heart_rate, AdmissionAssessment.heart_rate,
+                         DailyAssessment.heart_rate, DailyAssessment.heart_rate2,
+                         DailyAssessment.heart_rate3, na.rm = TRUE),
+           min_hr = pmin(Admission.heart_rate, AdmissionAssessment.heart_rate,
+                         DailyAssessment.heart_rate, DailyAssessment.heart_rate2,
+                         DailyAssessment.heart_rate3, na.rm = TRUE),
+           min_rr = pmin(Admission.respiratory_rate, AdmissionAssessment.respiratory_rate,
+                         DailyAssessment.respiratory_rate, DailyAssessment.respiratory_rate2,
+                         DailyAssessment.respiratory_rate3, na.rm = TRUE),
+           max_rr = pmax(Admission.respiratory_rate, AdmissionAssessment.respiratory_rate,
+                         DailyAssessment.respiratory_rate, DailyAssessment.respiratory_rate2,
+                         DailyAssessment.respiratory_rate3, na.rm = TRUE),
+           max_temp = pmax(Admission.temperature, AdmissionAssessment.temperature,
+                           DailyAssessment.temperature, DailyAssessment.temperature2,
+                           DailyAssessment.temperature3, na.rm = TRUE),
+           min_temp = pmin(Admission.temperature, AdmissionAssessment.temperature,
+                           DailyAssessment.temperature, DailyAssessment.temperature2,
+                           DailyAssessment.temperature3, na.rm = TRUE),
+           min_wcc = pmin(AdmissionAssessment.white_blood_cells,
+                          DailyAssessment.highest_wcc, DailyAssessment.lowest_wcc,
+                          SariDailyAssessment.white_blood_cells, na.rm = TRUE),
+           max_wcc = pmax(AdmissionAssessment.white_blood_cells,
+                          DailyAssessment.highest_wcc, DailyAssessment.lowest_wcc,
+                          SariDailyAssessment.white_blood_cells, na.rm = TRUE),
+           max_sbp = pmax(Admission.systolic_blood_pressure,
+                          AdmissionAssessment.systolic_blood_pressure,
+                          DailyAssessment.systolic_blood_pressure,
+                          DailyAssessment.systolic_blood_pressure2,
+                          DailyAssessment.systolic_blood_pressure3,
+                          SariDailyAssessment.systolic_blood_pressure,
+                          na.rm = TRUE),
+           min_sbp = pmin(Admission.systolic_blood_pressure,
+                          AdmissionAssessment.systolic_blood_pressure,
+                          DailyAssessment.systolic_blood_pressure,
+                          DailyAssessment.systolic_blood_pressure2,
+                          DailyAssessment.systolic_blood_pressure3,
+                          SariDailyAssessment.systolic_blood_pressure,
+                          na.rm = TRUE),
+           min_dbp = pmin(Admission.diastolic_blood_pressure,
+                          AdmissionAssessment.diastolic_blood_pressure,
+                          DailyAssessment.diastolic_blood_pressure,
+                          DailyAssessment.diastolic_blood_pressure2,
+                          DailyAssessment.diastolic_blood_pressure3,
+                          SariDailyAssessment.diastolic_blood_pressure,
+                          na.rm = TRUE),
+           max_dbp = pmax(Admission.diastolic_blood_pressure,
+                          AdmissionAssessment.diastolic_blood_pressure,
+                          DailyAssessment.diastolic_blood_pressure,
+                          DailyAssessment.diastolic_blood_pressure2,
+                          DailyAssessment.diastolic_blood_pressure3,
+                          SariDailyAssessment.diastolic_blood_pressure,
+                          na.rm = TRUE),
+           max_fio2 = pmax(AdmissionAssessment.fraction_inspired_oxygen,
+                           SariAdmissionAssessment.fraction_inspired_oxygen,
+                           DailyAssessment.fraction_inspired_oxygen,
+                           SariDailyAssessment.fraction_inspired_oxygen,
+                           na.rm = TRUE),
+           min_fio2 = pmin(AdmissionAssessment.fraction_inspired_oxygen,
+                           SariAdmissionAssessment.fraction_inspired_oxygen,
+                           DailyAssessment.fraction_inspired_oxygen,
+                           SariDailyAssessment.fraction_inspired_oxygen, na.rm = TRUE),
+           max_pao2 = pmax(AdmissionAssessment.partial_pressure_arterial_oxygen,
+                           AdmissionAssessment.partial_pressure_oxygen,
+                           SariAdmissionAssessment.partial_pressure_arterial_oxygen,
+                           DailyAssessment.partial_pressure_arterial_oxygen,
+                           DailyAssessment.partial_pressure_oxygen,
+                           SariDailyAssessment.partial_pressure_arterial_oxygen,
+                           na.rm = TRUE),
+           min_pao2 = pmin(AdmissionAssessment.partial_pressure_arterial_oxygen,
+                           AdmissionAssessment.partial_pressure_oxygen,
+                           SariAdmissionAssessment.partial_pressure_arterial_oxygen,
+                           DailyAssessment.partial_pressure_arterial_oxygen,
+                           DailyAssessment.partial_pressure_oxygen,
+                           SariDailyAssessment.partial_pressure_arterial_oxygen,
+                           na.rm = TRUE),
+           min_pcao2 = pmin(AdmissionAssessment.partial_pressure_carbon_dioxide,
+                            DailyAssessment.partial_pressure_carbon_dioxide,
+                            SariDailyAssessment.partial_pressure_carbon_dioxide, na.rm = TRUE),
+           max_pcao2 = pmax(AdmissionAssessment.partial_pressure_carbon_dioxide,
+                            DailyAssessment.partial_pressure_carbon_dioxide,
+                            SariDailyAssessment.partial_pressure_carbon_dioxide, na.rm = TRUE),
+           max_hematocrit = pmax(AdmissionAssessment.packed_cell_volume, na.rm = TRUE),
+           min_hematocrit = pmin(AdmissionAssessment.packed_cell_volume, na.rm = TRUE),
+           min_ph = pmin(AdmissionAssessment.arterial_ph,
+                         SariDailyAssessment.arterial_ph,
+                         na.rm = TRUE),
+           max_ph = pmax(AdmissionAssessment.arterial_ph,
+                         SariDailyAssessment.arterial_ph,
+                         na.rm = TRUE),
+           max_sodium = pmax(AdmissionAssessment.serum_sodium,
+                             SariDailyAssessment.serum_sodium, na.rm = TRUE),
+           min_sodium = pmin(AdmissionAssessment.serum_sodium,
+                             SariDailyAssessment.serum_sodium, na.rm = TRUE),
+           min_potassium = pmin(AdmissionAssessment.serum_potassium,
+                                SariDailyAssessment.potassium_level1,
+                                SariDailyAssessment.serum_potassium, na.rm = TRUE),
+           max_potassium = pmax(AdmissionAssessment.serum_potassium,
+                                SariDailyAssessment.potassium_level1,
+                                SariDailyAssessment.serum_potassium, na.rm = TRUE),
+           max_bicarbonate = pmax(AdmissionAssessment.bicarbonate,
+                                  AdmissionAssessment.serum_bicarbonate,
+                                  SariDailyAssessment.bicarbonate, na.rm = TRUE),
+           min_bicarbonate = pmin(AdmissionAssessment.bicarbonate,
+                                  AdmissionAssessment.serum_bicarbonate,
+                                  SariDailyAssessment.bicarbonate, na.rm = TRUE),
+           min_creatinine = pmin(AdmissionAssessment.serum_creatinine,
+                                 SariAdmissionAssessment.serum_creatinine,
+                                 DailyAssessment.serum_creatinine,
+                                 SariDailyAssessment.serum_creatinine,
+                                 na.rm = TRUE),
+           max_creatinine = pmax(AdmissionAssessment.serum_creatinine,
+                                 SariAdmissionAssessment.serum_creatinine,
+                                 DailyAssessment.serum_creatinine,
+                                 SariDailyAssessment.serum_creatinine,
+                                 na.rm = TRUE),
+           min_map = min_dbp + 1 / 3 * (min_sbp - min_dbp),
+           max_map = max_dbp + 1 / 3 * (max_sbp - max_dbp),
+           age = Admission.age)
+  # GCS variables need to be translated to numbers
+  data <- data %>%
+    mutate(across(c("Admission.gcs_verbal",
+                    "DailyAssessment.gcs_verbal",
+                    "DailyAssessment.gcs_verbal2",
+                    "DailyAssessment.gcs_verbal3",
+                    "SariDailyAssessment.gcs_verbal",
+                    "AdmissionAssessment.gcs_verbal",
+                    "SariAdmissionAssessment.gcs_verbal",
+                    "DailyAssessment.lowest_gcs_verbal",
+                    "DailyAssessment.highest_gcs_verbal") ~
+                    case_when(
+                      grepl("none", .x, ignore.case = T) ~ 1L,
+                      grepl("incomprehensible sounds", .x, ignore.case = T) ~ 2L,
+                      grepl("inappropriate words", .x, ignore.case = T) ~ 3L,
+                      grepl("confused", .x, ignore.case = T) ~ 4L,
+                      grepl("oriented", .x, ignore.case = T) ~ 5L
+                    )),
+           across(c("Admission.gcs_motor",
+                    "DailyAssessment.gcs_motor",
+                    "DailyAssessment.gcs_motor2",
+                    "DailyAssessment.gcs_motor3",
+                    "SariDailyAssessment.gcs_motor",
+                    "AdmissionAssessment.gcs_motor",
+                    "SariAdmissionAssessment.gcs_motor",
+                    "DailyAssessment.lowest_gcs_motor",
+                    "DailyAssessment.highest_gcs_motor") ~
+                    case_when(
+                      grepl("no motor response", .x, ignore.case = T) ~ 1L,
+                      grepl("extension to pain", .x, ignore.case = T) ~ 2L,
+                      grepl("flexion in response to pain", .x, ignore.case = T) ~ 3L,
+                      grepl("withdraws from pain", .x, ignore.case = T) ~ 4L,
+                      grepl("locailzes to pain", .x, ignore.case = T) ~ 5L,
+                      grepl("obeys commands", .x, ignore.case = T) ~ 6L
+                    )),
+           across(c("Admission.gcs_eye",
+                    "DailyAssessment.gcs_eye",
+                    "DailyAssessment.gcs_eye2",
+                    "DailyAssessment.gcs_eye3",
+                    "SariDailyAssessment.gcs_eye",
+                    "AdmissionAssessment.gcs_eye",
+                    "SariAdmissionAssessment.gcs_eye",
+                    "DailyAssessment.lowest_gcs_eye",
+                    "DailyAssessment.highest_gcs_eye") ~
+                    case_when(
+                      grepl("no eye opening", .x, ignore.case = T) ~ 1L,
+                      grepl("eye opening in response to pain", .x, ignore.case = T) ~ 2L,
+                      grepl("eye opening to speech", .x, ignore.case = T) ~ 3L,
+                      grepl("eye opening spontaneously", .x, ignore.case = T) ~ 4L
+                    )),
+           gcs_a = Admission.gcs_verbal + Admission.gcs_motor + Admission.gcs_eye,
+           gcs_d_1 = DailyAssessment.gcs_verbal + DailyAssessment.gcs_motor + DailyAssessment.gcs_eye,
+           gcs_d_2 = DailyAssessment.gcs_verbal2 + DailyAssessment.gcs_motor2 + DailyAssessment.gcs_eye2,
+           gcs_d_3 = DailyAssessment.gcs_verbal3 + DailyAssessment.gcs_motor3 + DailyAssessment.gcs_eye3,
+           gcs_sd = SariDailyAssessment.gcs_verbal + SariDailyAssessment.gcs_motor + SariDailyAssessment.gcs_eye,
+           gcs_aa = AdmissionAssessment.gcs_verbal + AdmissionAssessment.gcs_motor + AdmissionAssessment.gcs_eye,
+           gcs_sa = SariAdmissionAssessment.gcs_verbal + SariAdmissionAssessment.gcs_motor + SariAdmissionAssessment.gcs_eye,
+           gcs_da_l = DailyAssessment.lowest_gcs_verbal + DailyAssessment.lowest_gcs_motor + DailyAssessment.lowest_gcs_eye,
+           gcs_da_h = DailyAssessment.highest_gcs_verbal + DailyAssessment.highest_gcs_motor + DailyAssessment.highest_gcs_eye,
+           min_gcs = pmin(gcs_a, gcs_d_1, gcs_d_2, gcs_d_3, gcs_sd, gcs_aa, gcs_sa,
+                          gcs_da_l, gcs_da_h, na.rm = TRUE),
+           max_gcs = pmax(gcs_a, gcs_d_1, gcs_d_2, gcs_d_3, gcs_sd, gcs_aa, gcs_sa,
+                          gcs_da_l, gcs_da_h, na.rm = TRUE))
+
+  ### MAP, comorbidities, emergency admissions.
+  data <- data %>%
+    mutate(renal_failure =
+             if_else((Admission.comorbid_conditions %in% acute_renal_failure |
+                      Admission.comorbid_conditions2 %in% acute_renal_failure |
+                      Admission.comorbid_conditions3 %in% acute_renal_failure |
+                      Admission.comorbid_conditions4 %in% acute_renal_failure), 1, 0),
+           comorbidity =
+             if_else((Admission.comorbid_conditions %in% comorbid_list |
+                        Admission.comorbid_conditions2 %in% comorbid_list |
+                        Admission.comorbid_conditions3 %in% comorbid_list |
+                        Admission.comorbid_conditions4 %in% comorbid_list), 1, 0),
+           # NOTE - This needs fixing - but leaving it for the moment
+           emergency_admission = case_when(
+             Admission.diagnosis_type %in% c("non_operative", "Non operative") ~ 1,
+             Admission.emergency_surgery == "Yes" & A
+             Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 1,
+             Admission.emergency_surgery == "No" &
+               Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 0
+           )
+
+}
+
+
+
+
 #' Converts the units of measurements needed for apache ii and etropics calculation
 #' @param admission is a merged dataset of admission data, implementation sheet and units of measures
 #' @param daily is a merged dataset of daily data, implementation sheet and units of measures
@@ -157,330 +378,4 @@ unit_conversion_source <- function(admission, daily) {
   }
 
   output_data
-}
-
-
-#' Calculates APACHE II score
-#' @param admission_data Needs to have data with unit conversions
-#' @import dplyr
-#' @noRd
-calculate_apache_ii_score_source <- function(admission_data) {
-  acute_renal_failure <- c("Renal failure, Mild", "Renal failure, Moderate to severe", "CKD requiring dialysis")
-  comorbid_list <- c(
-    "AIDS", "Hepatic disease, Moderate to severe", "Renal failure, Moderate to severe",
-    "Respiratory disease, Severe moderate", "Leukemia", "Lymphoma", "Metastatic cancer",
-    "CKD requiring dialysis", "Cirrhosis", "GI bleeding", "Tumor", "Cerebrovascular disease"
-  )
-
-  apache_ii <- admission_data %>%
-    mutate(
-      temp_aps = case_when(
-        AdmissionAssessment.temperature >= 41 | AdmissionAssessment.temperature < 30 ~ 4,
-        (AdmissionAssessment.temperature >= 39 & AdmissionAssessment.temperature < 41) | (AdmissionAssessment.temperature >= 30 & AdmissionAssessment.temperature < 32) ~ 3,
-        AdmissionAssessment.temperature >= 32 & AdmissionAssessment.temperature < 34 ~ 2,
-        (AdmissionAssessment.temperature >= 38.5 & AdmissionAssessment.temperature < 39) | (AdmissionAssessment.temperature >= 34 & AdmissionAssessment.temperature < 36) ~ 1,
-        AdmissionAssessment.temperature >= 36 & AdmissionAssessment.temperature < 38.5 ~ 0,
-        TRUE ~ 0
-      ),
-      wbc_aps = case_when(
-        AdmissionAssessment.white_blood_cells >= 40 | AdmissionAssessment.white_blood_cells < 1 ~ 4,
-        (AdmissionAssessment.white_blood_cells >= 20 & AdmissionAssessment.white_blood_cells < 40) | (AdmissionAssessment.white_blood_cells >= 1 & AdmissionAssessment.white_blood_cells < 3) ~ 2,
-        AdmissionAssessment.white_blood_cells >= 15 & AdmissionAssessment.white_blood_cells < 20 ~ 1,
-        AdmissionAssessment.white_blood_cells >= 3 & AdmissionAssessment.white_blood_cells < 15 ~ 0,
-        TRUE ~ 0
-      ),
-      MAP = (2 * AdmissionAssessment.diastolic_blood_pressure + AdmissionAssessment.systolic_blood_pressure) / 3,
-      map_aps = case_when(
-        MAP >= 160 | MAP < 50 ~ 4,
-        MAP >= 130 & MAP < 160 ~ 3,
-        (MAP >= 110 & MAP < 130) | (MAP >= 50 & MAP < 70) ~ 2,
-        MAP >= 70 & MAP < 110 ~ 0,
-        TRUE ~ 0
-      ),
-      # For AaDO2 calculation, PaCO2 is imputed as 40 mmHg
-      AaDO2 = (AdmissionAssessment.fraction_inspired_oxygen * 710) - (40 * 1.25) - AdmissionAssessment.partial_pressure_arterial_oxygen,
-      AaDO2_aps = case_when(
-        AdmissionAssessment.fraction_inspired_oxygen >= 0.5 & AaDO2 >= 500 ~ 4,
-        AdmissionAssessment.fraction_inspired_oxygen >= 0.5 & AaDO2 >= 350 & AaDO2 < 500 ~ 3,
-        AdmissionAssessment.fraction_inspired_oxygen >= 0.5 & AaDO2 >= 200 & AaDO2 < 350 ~ 2,
-        AdmissionAssessment.fraction_inspired_oxygen >= 0.5 & AaDO2 < 200 ~ 0,
-        AdmissionAssessment.fraction_inspired_oxygen < 0.5 & AdmissionAssessment.partial_pressure_arterial_oxygen > 70 ~ 0,
-        AdmissionAssessment.fraction_inspired_oxygen < 0.5 & AdmissionAssessment.partial_pressure_arterial_oxygen > 60 & AdmissionAssessment.partial_pressure_arterial_oxygen <= 70 ~ 1,
-        AdmissionAssessment.fraction_inspired_oxygen < 0.5 & AdmissionAssessment.partial_pressure_arterial_oxygen >= 55 & AdmissionAssessment.partial_pressure_arterial_oxygen <= 60 ~ 3,
-        AdmissionAssessment.fraction_inspired_oxygen < 0.5 & AdmissionAssessment.partial_pressure_arterial_oxygen < 55 ~ 4,
-        TRUE ~ 0
-      ),
-      hmcrt_aps = case_when(
-        AdmissionAssessment.packed_cell_volume >= 60 | (AdmissionAssessment.packed_cell_volume > 0 & AdmissionAssessment.packed_cell_volume < 20) ~ 4,
-        (AdmissionAssessment.packed_cell_volume >= 50 & AdmissionAssessment.packed_cell_volume < 60) | (AdmissionAssessment.packed_cell_volume >= 20 & AdmissionAssessment.packed_cell_volume < 30) ~ 2,
-        AdmissionAssessment.packed_cell_volume >= 46 & AdmissionAssessment.packed_cell_volume < 50 ~ 1,
-        AdmissionAssessment.packed_cell_volume >= 30 & AdmissionAssessment.packed_cell_volume < 46 ~ 0,
-        TRUE ~ 0
-      ),
-      hr_aps = case_when(
-        AdmissionAssessment.heart_rate >= 180 | AdmissionAssessment.heart_rate < 40 ~ 4,
-        (AdmissionAssessment.heart_rate >= 140 & AdmissionAssessment.heart_rate < 180) | (AdmissionAssessment.heart_rate >= 40 & AdmissionAssessment.heart_rate < 55) ~ 3,
-        (AdmissionAssessment.heart_rate >= 110 & AdmissionAssessment.heart_rate < 140) | (AdmissionAssessment.heart_rate >= 55 & AdmissionAssessment.heart_rate < 70) ~ 2,
-        AdmissionAssessment.heart_rate >= 70 & AdmissionAssessment.heart_rate < 110 ~ 0,
-        TRUE ~ 0
-      ),
-      res_aps = case_when(
-        AdmissionAssessment.respiratory_rate >= 50 | AdmissionAssessment.respiratory_rate < 6 ~ 4,
-        AdmissionAssessment.respiratory_rate >= 35 & AdmissionAssessment.respiratory_rate < 50 ~ 3,
-        AdmissionAssessment.respiratory_rate >= 6 & AdmissionAssessment.respiratory_rate < 10 ~ 2,
-        (AdmissionAssessment.respiratory_rate >= 25 & AdmissionAssessment.respiratory_rate < 35) | (AdmissionAssessment.respiratory_rate >= 10 & AdmissionAssessment.respiratory_rate < 12) ~ 1,
-        AdmissionAssessment.respiratory_rate >= 12 & AdmissionAssessment.respiratory_rate < 25 ~ 0,
-        TRUE ~ 0
-      ),
-      artph_aps = case_when(
-        AdmissionAssessment.arterial_ph >= 7.7 | AdmissionAssessment.arterial_ph < 7.15 ~ 4,
-        (AdmissionAssessment.arterial_ph >= 7.6 & AdmissionAssessment.arterial_ph < 7.7) | (AdmissionAssessment.arterial_ph >= 7.15 & AdmissionAssessment.arterial_ph < 7.25) ~ 3,
-        AdmissionAssessment.arterial_ph >= 7.25 & AdmissionAssessment.arterial_ph < 7.33 ~ 2,
-        AdmissionAssessment.arterial_ph >= 7.5 & AdmissionAssessment.arterial_ph < 7.6 ~ 1,
-        AdmissionAssessment.arterial_ph >= 7.33 & AdmissionAssessment.arterial_ph < 7.5 ~ 0,
-        TRUE ~ 0
-      ),
-      sod_aps = case_when(
-        AdmissionAssessment.serum_sodium >= 180 | AdmissionAssessment.serum_sodium < 111 ~ 4,
-        (AdmissionAssessment.serum_sodium >= 160 & AdmissionAssessment.serum_sodium < 180) | (AdmissionAssessment.serum_sodium >= 111 & AdmissionAssessment.serum_sodium < 120) ~ 3,
-        (AdmissionAssessment.serum_sodium >= 155 & AdmissionAssessment.serum_sodium < 160) | (AdmissionAssessment.serum_sodium >= 120 & AdmissionAssessment.serum_sodium < 130) ~ 2,
-        AdmissionAssessment.serum_sodium >= 150 & AdmissionAssessment.serum_sodium < 155 ~ 1,
-        AdmissionAssessment.serum_sodium >= 130 & AdmissionAssessment.serum_sodium < 150 ~ 0,
-        TRUE ~ 0
-      ),
-      pot_aps = case_when(
-        AdmissionAssessment.serum_potassium >= 7 | AdmissionAssessment.serum_potassium < 2.5 ~ 4,
-        AdmissionAssessment.serum_potassium >= 6 & AdmissionAssessment.serum_potassium < 7 ~ 3,
-        AdmissionAssessment.serum_potassium >= 2.5 & AdmissionAssessment.serum_potassium < 3 ~ 2,
-        (AdmissionAssessment.serum_potassium >= 5.5 & AdmissionAssessment.serum_potassium < 6) | (AdmissionAssessment.serum_potassium >= 3 & AdmissionAssessment.serum_potassium < 3.5) ~ 1,
-        AdmissionAssessment.serum_potassium >= 3.5 & AdmissionAssessment.serum_potassium < 5.5 ~ 0,
-        TRUE ~ 0
-      ),
-      aph = if_else(!is.na(AdmissionAssessment.arterial_ph), 1, 0, 0),
-      hco3_aps = case_when(
-        (aph == 0 & AdmissionAssessment.serum_bicarbonate >= 52) | (aph == 0 & AdmissionAssessment.serum_bicarbonate < 15) ~ 4,
-        aph == 0 & AdmissionAssessment.serum_bicarbonate >= 41 & AdmissionAssessment.serum_bicarbonate < 52 ~ 3,
-        aph == 0 & AdmissionAssessment.serum_bicarbonate >= 15 & AdmissionAssessment.serum_bicarbonate < 18 ~ 3,
-        aph == 0 & AdmissionAssessment.serum_bicarbonate >= 18 & AdmissionAssessment.serum_bicarbonate < 22 ~ 2,
-        aph == 0 & AdmissionAssessment.serum_bicarbonate >= 32 & AdmissionAssessment.serum_bicarbonate < 41 ~ 1,
-        aph == 0 & AdmissionAssessment.serum_bicarbonate >= 22 & AdmissionAssessment.serum_bicarbonate < 32 ~ 0,
-        TRUE ~ 0
-      ),
-      gcs_eye = case_when(
-        grepl("no eye opening", AdmissionAssessment.gcs_eye, ignore.case = T) ~ 1L,
-        grepl("eye opening in response to pain", AdmissionAssessment.gcs_eye, ignore.case = T) ~ 2L,
-        grepl("eye opening to speech", AdmissionAssessment.gcs_eye, ignore.case = T) ~ 3L,
-        grepl("eye opening spontaneously", AdmissionAssessment.gcs_eye, ignore.case = T) ~ 4L
-      ),
-      gcs_verbal = case_when(
-        grepl("none", AdmissionAssessment.gcs_verbal, ignore.case = T) ~ 1L,
-        grepl("incomprehensible sounds", AdmissionAssessment.gcs_verbal, ignore.case = T) ~ 2L,
-        grepl("inappropriate words", AdmissionAssessment.gcs_verbal, ignore.case = T) ~ 3L,
-        grepl("confused", AdmissionAssessment.gcs_verbal, ignore.case = T) ~ 4L,
-        grepl("oriented", AdmissionAssessment.gcs_verbal, ignore.case = T) ~ 5L
-      ),
-      gcs_motor = case_when(
-        grepl("no motor response", AdmissionAssessment.gcs_motor, ignore.case = T) ~ 1L,
-        grepl("extension to pain", AdmissionAssessment.gcs_motor, ignore.case = T) ~ 2L,
-        grepl("flexion in response to pain", AdmissionAssessment.gcs_motor, ignore.case = T) ~ 3L,
-        grepl("withdraws from pain", AdmissionAssessment.gcs_motor, ignore.case = T) ~ 4L,
-        grepl("locailzes to pain", AdmissionAssessment.gcs_motor, ignore.case = T) ~ 5L,
-        grepl("obeys commands", AdmissionAssessment.gcs_motor, ignore.case = T) ~ 6L
-      ),
-      gcs = gcs_eye + gcs_verbal + gcs_motor,
-      gcs_aps = if_else(!is.na(gcs), 15 - gcs, 0),
-      com_creat = if_else((Admission.comorbid_conditions %in% acute_renal_failure |
-        Admission.comorbid_conditions2 %in% acute_renal_failure |
-        Admission.comorbid_conditions3 %in% acute_renal_failure |
-        Admission.comorbid_conditions4 %in% acute_renal_failure), 1, 0),
-      creat_aps = case_when(
-        AdmissionAssessment.serum_creatinine >= 3.5 ~ 4,
-        AdmissionAssessment.serum_creatinine >= 2 & AdmissionAssessment.serum_creatinine < 3.5 ~ 3,
-        AdmissionAssessment.serum_creatinine >= 1.5 & AdmissionAssessment.serum_creatinine < 2 ~ 2,
-        AdmissionAssessment.serum_creatinine < 0.6 ~ 2,
-        AdmissionAssessment.serum_creatinine >= 0.6 & AdmissionAssessment.serum_creatinine < 1.5 ~ 0,
-        TRUE ~ 0
-      ),
-      creat_aps = if_else(com_creat == 1, creat_aps * 2, creat_aps),
-      age_aps = case_when(
-        Admission.age >= 75 ~ 6,
-        Admission.age >= 65 & Admission.age < 75 ~ 5,
-        Admission.age >= 55 & Admission.age < 65 ~ 3,
-        Admission.age >= 45 & Admission.age < 55 ~ 2,
-        Admission.age < 45 ~ 0,
-        TRUE ~ 0
-      ),
-      com_chro = if_else((Admission.comorbid_conditions %in% comorbid_list |
-        Admission.comorbid_conditions2 %in% comorbid_list |
-        Admission.comorbid_conditions3 %in% comorbid_list |
-        Admission.comorbid_conditions4 %in% comorbid_list), 1, 0),
-      cond_chro = if_else(com_chro == 1, 1, 0),
-      chro_aps = case_when(
-        cond_chro == 1 & Admission.diagnosis_type %in% c("non_operative", "Non operative") ~ 5,
-        cond_chro == 1 & Admission.emergency_surgery == "Yes" & Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 5,
-        cond_chro == 1 & Admission.emergency_surgery == "No" & Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 2,
-        TRUE ~ 0
-      ),
-      apache_ii_score = temp_aps + wbc_aps + map_aps + AaDO2_aps + hmcrt_aps +
-        hr_aps + res_aps + artph_aps + sod_aps + pot_aps + hco3_aps +
-        gcs_aps + creat_aps + age_aps + chro_aps
-    ) %>%
-    select(patient_id, apache_ii_score)
-
-  admission_data <- left_join(admission_data, apache_ii, by = "patient_id")
-
-  admission_data
-}
-
-get_physiology_variable_availability_source <- function(data){
-
-  # First creating min and max variables based on real data.
-  data <- data %>%
-    mutate(max_hr = pmax(Admission.heart_rate, AdmissionAssessment.heart_rate,
-                         DailyAssessment.heart_rate, DailyAssessment.heart_rate2,
-                         DailyAssessment.heart_rate3, na.rm = TRUE),
-    min_hr = pmin(Admission.heart_rate, AdmissionAssessment.heart_rate,
-                  DailyAssessment.heart_rate, DailyAssessment.heart_rate2,
-                  DailyAssessment.heart_rate3, na.rm = TRUE),
-    min_rr = pmin(Admission.respiratory_rate, AdmissionAssessment.respiratory_rate,
-                  DailyAssessment.respiratory_rate, DailyAssessment.respiratory_rate2,
-                  DailyAssessment.respiratory_rate3, na.rm = TRUE),
-    max_rr = pmax(Admission.respiratory_rate, AdmissionAssessment.respiratory_rate,
-                  DailyAssessment.respiratory_rate, DailyAssessment.respiratory_rate2,
-                  DailyAssessment.respiratory_rate3, na.rm = TRUE),
-    max_temp = pmax(Admission.temperature, AdmissionAssessment.temperature,
-                    DailyAssessment.temperature, DailyAssessment.temperature2,
-                    DailyAssessment.temperature3, na.rm = TRUE),
-    min_temp = pmin(Admission.temperature, AdmissionAssessment.temperature,
-                    DailyAssessment.temperature, DailyAssessment.temperature2,
-                    DailyAssessment.temperature3, na.rm = TRUE),
-    min_wcc = pmin(AdmissionAssessment.white_blood_cells,
-                   DailyAssessment.highest_wcc, DailyAssessment.lowest_wcc,
-                   SariDailyAssessment.white_blood_cells, na.rm = TRUE),
-    max_wcc = pmax(AdmissionAssessment.white_blood_cells,
-                   DailyAssessment.highest_wcc, DailyAssessment.lowest_wcc,
-                   SariDailyAssessment.white_blood_cells, na.rm = TRUE),
-    max_sbp = pmax(Admission.systolic_blood_pressure,
-                   AdmissionAssessment.systolic_blood_pressure,
-                   DailyAssessment.systolic_blood_pressure,
-                   DailyAssessment.systolic_blood_pressure2,
-                   DailyAssessment.systolic_blood_pressure3,
-                   SariDailyAssessment.systolic_blood_pressure,
-                   na.rm = TRUE),
-    min_sbp = pmin(Admission.systolic_blood_pressure,
-                   AdmissionAssessment.systolic_blood_pressure,
-                   DailyAssessment.systolic_blood_pressure,
-                   DailyAssessment.systolic_blood_pressure2,
-                   DailyAssessment.systolic_blood_pressure3,
-                   SariDailyAssessment.systolic_blood_pressure,
-                   na.rm = TRUE),
-    min_dbp = pmin(Admission.diastolic_blood_pressure,
-                   AdmissionAssessment.diastolic_blood_pressure,
-                   DailyAssessment.diastolic_blood_pressure,
-                   DailyAssessment.diastolic_blood_pressure2,
-                   DailyAssessment.diastolic_blood_pressure3,
-                   SariDailyAssessment.diastolic_blood_pressure,
-                   na.rm = TRUE),
-    max_dbp = pmax(Admission.diastolic_blood_pressure,
-                   AdmissionAssessment.diastolic_blood_pressure,
-                   DailyAssessment.diastolic_blood_pressure,
-                   DailyAssessment.diastolic_blood_pressure2,
-                   DailyAssessment.diastolic_blood_pressure3,
-                   SariDailyAssessment.diastolic_blood_pressure,
-                   na.rm = TRUE),
-    max_fio2 = pmax(AdmissionAssessment.fraction_inspired_oxygen,
-                    SariAdmissionAssessment.fraction_inspired_oxygen,
-                    DailyAssessment.fraction_inspired_oxygen,
-                    SariDailyAssessment.fraction_inspired_oxygen,
-                    na.rm = TRUE),
-    min_fio2 = pmin(AdmissionAssessment.fraction_inspired_oxygen,
-                    SariAdmissionAssessment.fraction_inspired_oxygen,
-                    DailyAssessment.fraction_inspired_oxygen,
-                    SariDailyAssessment.fraction_inspired_oxygen, na.rm = TRUE),
-    max_pao2 = pmax(AdmissionAssessment.partial_pressure_arterial_oxygen,
-                    AdmissionAssessment.partial_pressure_oxygen,
-                    SariAdmissionAssessment.partial_pressure_arterial_oxygen,
-                    DailyAssessment.partial_pressure_arterial_oxygen,
-                    DailyAssessment.partial_pressure_oxygen,
-                    SariDailyAssessment.partial_pressure_arterial_oxygen,
-                    na.rm = TRUE),
-    min_pao2 = pmin(AdmissionAssessment.partial_pressure_arterial_oxygen,
-                    AdmissionAssessment.partial_pressure_oxygen,
-                    SariAdmissionAssessment.partial_pressure_arterial_oxygen,
-                    DailyAssessment.partial_pressure_arterial_oxygen,
-                    DailyAssessment.partial_pressure_oxygen,
-                    SariDailyAssessment.partial_pressure_arterial_oxygen,
-                    na.rm = TRUE),
-    min_pcao2 = pmin(AdmissionAssessment.partial_pressure_carbon_dioxide,
-                     DailyAssessment.partial_pressure_carbon_dioxide,
-                     SariDailyAssessment.partial_pressure_carbon_dioxide, na.rm = TRUE),
-    max_pcao2 = pmax(AdmissionAssessment.partial_pressure_carbon_dioxide,
-                     DailyAssessment.partial_pressure_carbon_dioxide,
-                     SariDailyAssessment.partial_pressure_carbon_dioxide, na.rm = TRUE),
-    max_hematocrit = pmax(AdmissionAssessment.packed_cell_volume, na.rm = TRUE),
-    min_hematocrit = pmin(AdmissionAssessment.packed_cell_volume, na.rm = TRUE),
-    min_ph = pmin(AdmissionAssessment.arterial_ph,
-                  SariDailyAssessment.arterial_ph,
-                  na.rm = TRUE),
-    max_ph = pmax(AdmissionAssessment.arterial_ph,
-                  SariDailyAssessment.arterial_ph,
-                  na.rm = TRUE),
-    max_sodium = pmax(AdmissionAssessment.serum_sodium,
-                      SariDailyAssessment.serum_sodium, na.rm = TRUE),
-    min_sodium = pmin(AdmissionAssessment.serum_sodium,
-                      SariDailyAssessment.serum_sodium, na.rm = TRUE),
-    min_potassium = pmin(AdmissionAssessment.serum_potassium,
-                         SariDailyAssessment.potassium_level1,
-                         SariDailyAssessment.serum_potassium, na.rm = TRUE),
-    max_potassium = pmax(AdmissionAssessment.serum_potassium,
-                         SariDailyAssessment.potassium_level1,
-                         SariDailyAssessment.serum_potassium, na.rm = TRUE),
-    max_bicarbonate = pmax(AdmissionAssessment.bicarbonate,
-                           AdmissionAssessment.serum_bicarbonate,
-                           SariDailyAssessment.bicarbonate, na.rm = TRUE),
-    min_bicarbonate = pmin(AdmissionAssessment.bicarbonate,
-                           AdmissionAssessment.serum_bicarbonate,
-                           SariDailyAssessment.bicarbonate, na.rm = TRUE),
-    min_creatinine = pmin(AdmissionAssessment.serum_creatinine,
-                          SariAdmissionAssessment.serum_creatinine,
-                          DailyAssessment.serum_creatinine,
-                          SariDailyAssessment.serum_creatinine,
-                          na.rm = TRUE),
-    max_creatinine = pmax(AdmissionAssessment.serum_creatinine,
-                          SariAdmissionAssessment.serum_creatinine,
-                          DailyAssessment.serum_creatinine,
-                          SariDailyAssessment.serum_creatinine,
-                          na.rm = TRUE),
-    gcs_min = coalesce(Admission.gcs_verbal,
-                       DailyAssessment.gcs_verbal,
-                       DailyAssessment.gcs_verbal2,
-                       DailyAssessment.gcs_verbal3,
-                       SariDailyAssessment.gcs_verbal,
-                       AdmissionAssessment.gcs_verbal,
-                       SariAdmissionAssessment.gcs_verbal,
-                       DailyAssessment.lowest_gcs_verbal,
-                       DailyAssessment.highest_gcs_verbal))
-
-  availability <-
-    data %>%
-    select(starts_with(c("max_", "apache_ii_score"))) %>%
-    rename_all(~ stringr::str_replace(., "^max_", "")) %>%
-    rename_all(~ stringr::str_replace(., "^apache_ii_score_no_imputation",
-                                      "APACHE-II-no-imputation")) %>%
-    rename_all(~ stringr::str_replace(., "^apache_ii_score", "APACHE-II")) %>%
-    summarise_all(list(
-      availability = ~ round(100 * sum(!is.na(.)) / nrow(data), 2),
-      min = ~ if (all(is.na(.))) NA_real_ else round(min(., na.rm = TRUE), 2),
-      max = ~ if (all(is.na(.))) NA_real_ else round(max(., na.rm = TRUE), 2)
-    )) %>%
-    pivot_longer(
-      cols = names(.),
-      names_to = c("variable", "summary"),
-      names_sep = "_"
-    ) %>%
-    pivot_wider(names_from = "summary", values_from = "value") %>%
-    arrange(variable)
-
-  availability
-
 }
