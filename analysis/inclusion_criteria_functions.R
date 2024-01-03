@@ -97,5 +97,25 @@ apply_ccaa_specific_exclusions <- function(data, output_path) {
     mutate(`Unit ID` = gsub(" .*$", "", care_site_name)) %>%
     inner_join(all_implementation, by = "Unit ID")
 
+  ## Also finding out if patients were readmitted to ICU
+  raw_sql <- glue("SELECT DISTINCT person_id
+                                   ,visit_occurrence_id
+                                   ,visit_detail_id
+                                   , observation_datetime as readmission_datetime
+                                   , value_as_string as readmission
+                     FROM cca_omop.observation
+                    WHERE observation_concept_id = 2000000042")
+
+  readmission_dataset <- dbGetQuery(conn, raw_sql)
+
+  # Removing readmissions if first ICU admission not already selected
+  data <- data %>%
+  left_join(readmission_dataset,
+            by = c("person_id",
+                   "visit_occurrence_id",
+                   "visit_detail_id")) %>%
+    filter(!(readmission == "Yes" &
+             readmission_datetime == icu_admission_datetime))
+
   data
 }

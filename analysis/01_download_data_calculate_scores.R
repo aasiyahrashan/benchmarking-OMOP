@@ -71,6 +71,21 @@ if (dataset_name == "NICE") {
     filter(between(diagnosis_concept_id, 2000000074, 2000000127))
 }
 
+#### CCAA ones also need a separate SQL query
+if (dataset_name == "CCAA") {
+  download_mapping_files(
+    freetext_mapping_path,
+    snomed_mapping_path,
+    ap2_path,
+    ap2_coefs_path,
+    implementation_asia_path,
+    implementation_africa_path,
+    units_of_measure_path,
+    output_path
+  )
+  data <- apply_ccaa_specific_exclusions(data, output_path)
+}
+
 dbDisconnect(conn)
 
 #### Making sure everyone has a diagnosis recorded in the OMOP data set.
@@ -91,21 +106,6 @@ if (nrow(missing_diag) > 1) {
   )
 }
 
-### This is a CCAA specific calculation of APACHE II coefficients.
-if (dataset_name == "CCAA") {
-  download_mapping_files(
-    freetext_mapping_path,
-    snomed_mapping_path,
-    ap2_path,
-    ap2_coefs_path,
-    implementation_asia_path,
-    implementation_africa_path,
-    units_of_measure_path,
-    output_path
-  )
-}
-
-
 # This needs to include variables called primary_diagnosis_name and ap_diag_coef.
 coef_data <- get_apache_ii_coefficents(diag_data, dataset_name,
                                        output_path = output_path)
@@ -117,7 +117,6 @@ data <- left_join(data,
     "visit_detail_id"
   )
 )
-
 save(data, file = "data/01_orig_data.RData")
 save(diag_data, file = "data/02_diag_data.RData")
 
@@ -127,10 +126,6 @@ load("data/01_orig_data.RData")
 
 
 # Exclusion criteria ------------------------------------------------------
-if (dataset_name == "CCAA") {
-  data <- apply_ccaa_specific_exclusions(data, output_path)
-}
-
 # Calculating variables needed for later
 data <- data %>%
   mutate(
