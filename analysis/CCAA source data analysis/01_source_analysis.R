@@ -135,7 +135,8 @@ source_data <- source_data %>%
 source_data <- left_join(source_data, units_of_measure, by = c("unitId" = "unit_id"))
 source_data <- calculate_min_max_variables(source_data)
 source_data <- unit_conversion_source(admission = source_data)
-source_data <- fix_implausible_values_apache_ii(source_data)
+source_data <- data.table(source_data)
+source_data <- fix_implausible_values_apache_ii(data = source_data)
 source_data <- calculate_apache_ii_score(source_data)
 source_data <- calculate_apache_ii_prob(source_data)
 
@@ -217,7 +218,7 @@ setColWidths(wb, "3_source_data_tableone", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
 # Getting availability and range of the physiology components of the APACHE II score.
-availability <- get_physiology_variable_availability(data)
+availability <- get_physiology_variable_availability(source_data)
 
 # Writing the output out.
 wb <- loadWorkbook("output/01_output.xlsx")

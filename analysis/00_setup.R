@@ -22,9 +22,10 @@ library(mice)
 library(SqlRender)
 # Required for the dbGetQuery function
 library(DBI)
+library(data.table)
 conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag", "dplyr")
-
+conflicted::conflicts_prefer(lubridate::year)
 # Benchmark date range defining -------------------------------------------
 start_date <- "2019-07-01"
 end_date <- "2022-12-31"

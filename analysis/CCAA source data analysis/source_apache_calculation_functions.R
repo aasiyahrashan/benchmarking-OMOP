@@ -86,10 +86,10 @@ calculate_min_max_variables <- function(data){
                            DailyAssessment.partial_pressure_oxygen,
                            SariDailyAssessment.partial_pressure_arterial_oxygen,
                            na.rm = TRUE),
-           min_pcao2 = pmin(AdmissionAssessment.partial_pressure_carbon_dioxide,
+           min_paco2 = pmin(AdmissionAssessment.partial_pressure_carbon_dioxide,
                             DailyAssessment.partial_pressure_carbon_dioxide,
                             SariDailyAssessment.partial_pressure_carbon_dioxide, na.rm = TRUE),
-           max_pcao2 = pmax(AdmissionAssessment.partial_pressure_carbon_dioxide,
+           max_paco2 = pmax(AdmissionAssessment.partial_pressure_carbon_dioxide,
                             DailyAssessment.partial_pressure_carbon_dioxide,
                             SariDailyAssessment.partial_pressure_carbon_dioxide, na.rm = TRUE),
            max_hematocrit = pmax(AdmissionAssessment.packed_cell_volume, na.rm = TRUE),
@@ -131,15 +131,15 @@ calculate_min_max_variables <- function(data){
            age = Admission.age)
   # GCS variables need to be translated to numbers
   data <- data %>%
-    mutate(across(c("Admission.gcs_verbal",
-                    "DailyAssessment.gcs_verbal",
-                    "DailyAssessment.gcs_verbal2",
-                    "DailyAssessment.gcs_verbal3",
-                    "SariDailyAssessment.gcs_verbal",
-                    "AdmissionAssessment.gcs_verbal",
-                    "SariAdmissionAssessment.gcs_verbal",
-                    "DailyAssessment.lowest_gcs_verbal",
-                    "DailyAssessment.highest_gcs_verbal") ~
+    mutate(across(c(Admission.gcs_verbal,
+                    DailyAssessment.gcs_verbal,
+                    DailyAssessment.gcs_verbal2,
+                    DailyAssessment.gcs_verbal3,
+                    SariDailyAssessment.gcs_verbal,
+                    AdmissionAssessment.gcs_verbal,
+                    SariAdmissionAssessment.gcs_verbal,
+                    DailyAssessment.lowest_gcs_verbal,
+                    DailyAssessment.highest_gcs_verbal), ~
                     case_when(
                       grepl("none", .x, ignore.case = T) ~ 1L,
                       grepl("incomprehensible sounds", .x, ignore.case = T) ~ 2L,
@@ -155,7 +155,7 @@ calculate_min_max_variables <- function(data){
                     "AdmissionAssessment.gcs_motor",
                     "SariAdmissionAssessment.gcs_motor",
                     "DailyAssessment.lowest_gcs_motor",
-                    "DailyAssessment.highest_gcs_motor") ~
+                    "DailyAssessment.highest_gcs_motor"), ~
                     case_when(
                       grepl("no motor response", .x, ignore.case = T) ~ 1L,
                       grepl("extension to pain", .x, ignore.case = T) ~ 2L,
@@ -172,7 +172,7 @@ calculate_min_max_variables <- function(data){
                     "AdmissionAssessment.gcs_eye",
                     "SariAdmissionAssessment.gcs_eye",
                     "DailyAssessment.lowest_gcs_eye",
-                    "DailyAssessment.highest_gcs_eye") ~
+                    "DailyAssessment.highest_gcs_eye"), ~
                     case_when(
                       grepl("no eye opening", .x, ignore.case = T) ~ 1L,
                       grepl("eye opening in response to pain", .x, ignore.case = T) ~ 2L,
@@ -213,13 +213,14 @@ calculate_min_max_variables <- function(data){
              Admission.emergency_surgery == "No" &
                Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 0
            ))
-
+  data
 }
 
 
 
 
 #' Converts the units of measurements needed for apache ii and etropics calculation
+#' Also renames unit of measure variables for use with the general apache functions.
 #' @param admission is a merged dataset of admission data, implementation sheet and units of measures
 #' @param daily is a merged dataset of daily data, implementation sheet and units of measures
 #' @noRd
@@ -287,11 +288,12 @@ unit_conversion_source <- function(admission, daily) {
 
     admission <- admission %>%
       mutate(
-        across(c(max_temp, min_temp) ~ case_when(
+        across(c(max_temp, min_temp), ~ case_when(
           temperature_measure == "°C" ~ .x,
           temperature_measure == "°F" ~ (.x - 32) * 5 / 9
         )),
-        across(c(max_wcc, min_wcc) ~ case_when(
+        unit_temp = "degree Celsius",
+        across(c(max_wcc, min_wcc), ~ case_when(
           white_blood_cell_count_measure %in% c("cells/mm³", "cells/μL", "1000/mcgl") ~ .x / 1000,
           white_blood_cell_count_measure %in% c(
             "10^9/L", "10^3/mm³", "K/µL",
@@ -300,25 +302,35 @@ unit_conversion_source <- function(admission, daily) {
           white_blood_cell_count_measure == "lakhs/mm³" ~ .x * 100,
           white_blood_cell_count_measure == "cells/L" ~ .x * 0.000000001
         )),
-        across(c(max_fio2, min_fio2) ~ case_when(
+        unit_wcc = "billion per liter",
+        across(c(max_fio2, min_fio2), ~ case_when(
           fi_o2_measure == "%" ~ .x * 0.01,
           fi_o2_measure == "l/min" ~ (20 + 4 * .x) * 0.01,
           fi_o2_measure == "/" ~ .x
         )),
-        across(c(max_pao2, min_pao2) ~ case_when(
+        unit_fio2 = "ratio",
+        across(c(max_pao2, min_pao2), ~ case_when(
           pa_o2_measure == "mmHg" ~ .x,
           pa_o2_measure == "KPa" ~ .x * 7.50062
         )),
-        across(c(max_hematocrit, min_hematocrit) ~ case_when(
+        unit_pao2 = "millimeter mercury column",
+        across(c(max_hematocrit, min_hematocrit), ~ case_when(
           packed_cell_volume_measure == "%" ~ .x,
           packed_cell_volume_measure %in% c("/", "L/L") ~ .x * 100
         )),
-        across(c(max_creatinine, min_creatinine) ~ case_when(
+        unit_hematocrit = "percent",
+        across(c(max_creatinine, min_creatinine), ~ case_when(
           serum_creatinine_measure == "mg/dl" ~ .x,
           serum_creatinine_measure == "mg/L" ~ .x * 0.1,
           serum_creatinine_measure == "mmol/L" ~ .x * 11.312,
           serum_creatinine_measure == "μmol/L" ~ .x * 0.0113
-        ))
+        )),
+        unit_creatinine = "milligram per deciliter",
+        unit_paco2 = "millimeter mercury column",
+        unit_sodium = "millimole per liter",
+        unit_potassium = "millimole per liter",
+        unit_bicarbonate = "millimole per liter"
+
       )
 
     output_data <- admission
