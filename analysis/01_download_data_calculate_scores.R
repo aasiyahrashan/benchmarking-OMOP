@@ -285,9 +285,8 @@ excl_vars <-
     "admission_year", "ap2_diag_coef")
 if(!length(unique(data$country)) > 1) excl_vars <- append(excl_vars, "country")
 
-pred <- pred[, -which(colnames(pred) %in% excl_vars)]
-
-pred <- pred[-which(rownames(pred) %in% excl_vars), ]
+pred[, excl_vars] <- 0
+pred[excl_vars, ] <- 0
 
 mice_data <- mice(mice_data,
   pred = pred, m = 30, maxit = 100,
