@@ -1,7 +1,9 @@
 calculate_min_max_variables <- function(data){
 
   # Defining comorbidity lists
-  acute_renal_failure <- c("Renal failure, Mild", "Renal failure, Moderate to severe", "CKD requiring dialysis")
+  acute_renal_failure <- c("Renal failure, Mild",
+                           "Renal failure, Moderate to severe",
+                           "CKD requiring dialysis")
   comorbid_list <- c(
     "AIDS", "Hepatic disease, Moderate to severe", "Renal failure, Moderate to severe",
     "Respiratory disease, Severe moderate", "Leukemia", "Lymphoma", "Metastatic cancer",
@@ -205,14 +207,42 @@ calculate_min_max_variables <- function(data){
                         Admission.comorbid_conditions2 %in% comorbid_list |
                         Admission.comorbid_conditions3 %in% comorbid_list |
                         Admission.comorbid_conditions4 %in% comorbid_list), 1, 0),
-           # NOTE - This needs fixing - but leaving it for the moment
-           emergency_admission = case_when(
-             Admission.diagnosis_type %in% c("non_operative", "Non operative") ~ 1,
-             Admission.emergency_surgery == "Yes" &
-             Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 1,
-             Admission.emergency_surgery == "No" &
-               Admission.diagnosis_type %in% c("post_operative", "Post operative") ~ 0
-           ))
+           non_operative = if_else(
+             (Admission.diagnosis_type %in% c("Non operative", "Planned others", "Planned-other",
+                                              "Unplanned others", "Unplanned-other")) &
+               (is.na(Admission.diagnosis_type2) |
+                  Admission.diagnosis_type2 %in% c("Non operative", "Non operative2",
+                                                   "Planned others", "Planned-other",
+                                                   "Unplanned others", "Unplanned-other")),
+             1L, 0L, 0L
+           ),
+           post_operative = if_else(
+             Admission.diagnosis_type %in% c("Post operative", "Planned following surgery",
+                                             "Unplanned following surgery") |
+               Admission.diagnosis_type2 %in% c("Post operative", "Post operative2",
+                                                "Planned following surgery",
+                                                "Unplanned following surgery"), 1L, 0L, 0L
+           ),
+           emergency_surgery = if_else(
+             post_operative == 1 & (Admission.emergency_surgery == "Yes" |
+                                      Admission.diagnosis_type == "Unplanned following surgery" |
+                                      Admission.diagnosis_type2 == "Unplanned following surgery" |
+                                      Admission.admission_type == "Unplanned"), 1L, 0L, 0L
+           ),
+           # To use for APACHE II score if both diagnosis_type variables are empty but admission_type is filled in
+           # As unplanned can either be unplanned after surgery or unplanned non operative, we capture this in the same category as AP2 assigns same score for both category,
+           emer_surg_or_medical = if_else(is.na(Admission.diagnosis_type) &
+                                            is.na(Admission.diagnosis_type2) &
+                                            Admission.admission_type == "Unplanned", 1L, 0L, 0L),
+           planned = if_else(
+             (post_operative == 1 & emergency_surgery == 0) |
+               # If both diagnosis_type variables are empty, but admission_type is filled
+               (non_operative == 0 & post_operative == 0 &
+                  Admission.admission_type == "Planned")   == 1, 1L, 0L, 0L),
+           emergency_admission = case_when(non_operative == 1 |
+                                           emergency_surgery == 1 | emer_surg_or_medical == 1 ~ 1,
+                                         post_operative == 1 & emergency_surgery == 0 ~ 0)
+           )
   data
 }
 
