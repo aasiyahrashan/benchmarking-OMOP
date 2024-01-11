@@ -345,8 +345,8 @@ unit_conversion_source <- function(admission, daily) {
         )),
         unit_pao2 = "millimeter mercury column",
         across(c(max_hematocrit, min_hematocrit), ~ case_when(
-          packed_cell_volume_measure == "%" ~ .x,
-          packed_cell_volume_measure %in% c("/", "L/L") ~ .x * 100
+          .x > 1 ~ .x,
+          .x <=1 ~ .x * 100
         )),
         unit_hematocrit = "percent",
         across(c(max_creatinine, min_creatinine), ~ case_when(
