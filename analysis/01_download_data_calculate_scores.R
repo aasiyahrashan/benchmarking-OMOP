@@ -24,88 +24,90 @@ data <- get_score_variables(
   0, 1, concepts_path, "APACHE II"
 )
 
-###### Getting care site and death data and merging with main data set.
+##### Getting care site and death data and merging with main data set.
 # Editing date arugments to add single quotes for SQL
-start_date_sql <- single_quote(start_date)
-end_date_sql <- single_quote(end_date)
+ start_date_sql <- single_quote(start_date)
+ end_date_sql <- single_quote(end_date)
 
-raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
-  SqlRender::translate(tolower(dialect)) %>%
-  SqlRender::render(
-    schema = schema,
-    start_date = start_date_sql,
-    end_date = end_date_sql
-  )
+ raw_sql <- read_file("analysis/get_care_site_outcome.sql") %>%
+   SqlRender::translate(tolower(dialect)) %>%
+   SqlRender::render(
+     schema = schema,
+     start_date = start_date_sql,
+     end_date = end_date_sql
+   )
 
-outcome_data <- dbGetQuery(conn, raw_sql)
+ outcome_data <- dbGetQuery(conn, raw_sql)
 
-data <- left_join(data,
-  outcome_data,
-  by = c(
-    "person_id",
-    "visit_occurrence_id",
-    "visit_detail_id",
-    "icu_admission_datetime"
-  )
-)
+ data <- left_join(data,
+   outcome_data,
+   by = c(
+     "person_id",
+     "visit_occurrence_id",
+     "visit_detail_id",
+     "icu_admission_datetime"
+   )
+ )
 
-# Getting diagnosis data --------------------------------------------------
-# Query is saved in SQL file.
-raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
-  SqlRender::translate(tolower(dialect)) %>%
-  SqlRender::render(
-    dbname = dbname,
-    schema = schema,
-    start_date = start_date_sql,
-    end_date = end_date_sql
-  )
+ # Getting diagnosis data --------------------------------------------------
+ # Query is saved in SQL file.
+ raw_sql <- read_file("analysis/get_diagnoses.sql") %>%
+   SqlRender::translate(tolower(dialect)) %>%
+   SqlRender::render(
+     dbname = dbname,
+     schema = schema,
+     start_date = start_date_sql,
+     end_date = end_date_sql
+   )
 
-#### Running the query
-diag_data <- dbGetQuery(conn, raw_sql)
+ #### Running the query
+ diag_data <- dbGetQuery(conn, raw_sql)
 
-#### NICE exclusions need the postgres connection, so running before disconnect.
-if (dataset_name == "NICE") {
-  data <- apply_nice_specific_exclusions(conn, data)
-  diag_data <- apply_nice_specific_exclusions(conn, diag_data)
-  diag_data <- diag_data %>%
-    filter(between(diagnosis_concept_id, 2000000074, 2000000127))
-}
+ #### NICE exclusions need the postgres connection, so running before disconnect.
+ if (dataset_name == "NICE") {
+   data <- apply_nice_specific_exclusions(conn, data)
+   diag_data <- apply_nice_specific_exclusions(conn, diag_data)
+   diag_data <- diag_data %>%
+     filter(between(diagnosis_concept_id, 2000000074, 2000000127))
+ }
 
-#### CCAA exclusions also need a separate SQL query
+ #### CCAA exclusions also need a separate SQL query
 if (dataset_name == "CCAA") {
 
-  # Finding out if patients were readmitted to ICU
-  raw_sql <- glue("SELECT DISTINCT person_id
-                                   ,visit_occurrence_id
-                                   ,visit_detail_id
-                                   , observation_datetime as readmission_datetime
-                                   , value_as_string as readmission
-                     FROM cca_omop.observation
-                    WHERE observation_concept_id = 2000000042")
+   # Finding out if patients were readmitted to ICU
+   raw_sql <- glue("SELECT DISTINCT person_id
+                                    ,visit_occurrence_id
+                                    ,visit_detail_id
+                                    , observation_datetime as readmission_datetime
+                                    , value_as_string as readmission
+                      FROM cca_omop.observation
+                     WHERE observation_concept_id = 2000000042")
 
-  readmission_dataset <- dbGetQuery(conn, raw_sql)
+   readmission_dataset <- dbGetQuery(conn, raw_sql)
 
-  # Removing readmissions
-  data <- data %>%
-    left_join(readmission_dataset,
-              by = c("person_id",
-                     "visit_occurrence_id",
-                     "visit_detail_id")) %>%
-    filter(!(readmission == "Yes" &
-               readmission_datetime == icu_admission_datetime))
+   # Removing readmissions
+   data <- data %>%
+     left_join(readmission_dataset,
+               by = c("person_id",
+                      "visit_occurrence_id",
+                      "visit_detail_id")) %>%
+     filter(is.na(readmission) |
+              readmission == "No" |
+              (readmission == "Yes" &
+                 readmission_datetime != icu_admission_datetime))
 
-  download_mapping_files(
-    freetext_mapping_path,
-    snomed_mapping_path,
-    ap2_path,
-    ap2_coefs_path,
-    implementation_asia_path,
-    implementation_africa_path,
-    units_of_measure_path,
-    output_path
-  )
-  data <- apply_ccaa_specific_exclusions(data, output_path)
-}
+   download_mapping_files(
+     freetext_mapping_path,
+     snomed_mapping_path,
+     ap2_path,
+     ap2_coefs_path,
+     implementation_asia_path,
+     implementation_africa_path,
+     units_of_measure_path,
+     output_path
+   )
+   data <- apply_ccaa_specific_exclusions(data, output_path)
+   }
 
 dbDisconnect(conn)
 
