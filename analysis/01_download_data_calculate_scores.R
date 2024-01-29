@@ -237,8 +237,6 @@ data <- data %>%
   # Excluding patients without APACHE II diagnoses
   filter(!is.na(ap2_diag_coef))
 
-
-
 # APACHE II score and prob ------------------------------------------------
 data <- fix_apache_ii_units(data)
 data <- fix_implausible_values_apache_ii(data)

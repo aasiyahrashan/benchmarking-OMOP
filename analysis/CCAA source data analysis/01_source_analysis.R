@@ -140,7 +140,6 @@ source_data <- fix_implausible_values_apache_ii(data = source_data)
 source_data <- calculate_apache_ii_score(source_data)
 source_data <- calculate_apache_ii_prob(source_data)
 
-
 # Calculating SMRs --------------------------------------------------------
 smrs_ni <- source_data %>%
   group_by(country, admission_year) %>%
