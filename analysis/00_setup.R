@@ -28,7 +28,9 @@ conflicted::conflict_prefer("lag", "dplyr")
 conflicted::conflicts_prefer(lubridate::year)
 # Benchmark date range defining -------------------------------------------
 start_date <- "2019-07-01"
-end_date <- "2022-12-31"
+# Realised this needs to be 2023-01-01 because the time is imputed as 00:00:00 in sql.
+# Otherwise, the query leaves out patients admitted on December 31st.
+end_date <- "2023-01-01"
 output_path <- "."
 
 # Creating output folders -------------------------------------------------
