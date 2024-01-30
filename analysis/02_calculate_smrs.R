@@ -167,7 +167,7 @@ saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 # The NICE graph has size limits for publicatio
 if(dataset_name == "NICE"){
   smr_graph(smrs_ni, "expected_ap2", "",
-            max = 8000, automatic_y_lim = TRUE)
+            max = 10000, automatic_y_lim = TRUE)
 } else if (dataset_name == "CCAA"){
   smr_graph(smrs_ni, "expected_ap2", "APACHE II normal imputation")
 }
@@ -181,7 +181,7 @@ if(dataset_name == "NICE"){
   smr_graph(smrs_mi, "pooled_mean", "APACHE II multiple imputation")
 } else if (dataset_name == "CCAA"){
   smr_graph(smrs_mi, "pooled_mean", "",
-            max = 8000, automatic_y_lim = TRUE)
+            max = 10000, automatic_y_lim = TRUE)
 }
 ggsave("output/03_funnel_plot_mi.png", width = 7, height =7,
        bg='transparent')
