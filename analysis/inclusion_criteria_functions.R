@@ -73,6 +73,7 @@ apply_ccaa_specific_exclusions <- function(data, output_path) {
     filter(
       !grepl("*PICU*", `ICU Name`, ignore.case = TRUE),
       !grepl("*Pediatric*", `ICU Name`, ignore.case = TRUE),
+      !grepl("*Paediatric*", `ICU Name`, ignore.case = TRUE),
       !grepl("*Ward*", `ICU Name`, ignore.case = TRUE),
       !grepl("*HDU*", `ICU Name`, ignore.case = TRUE),
       !grepl("*High Risk Unit*", `ICU Name`, ignore.case = TRUE),
@@ -85,8 +86,8 @@ apply_ccaa_specific_exclusions <- function(data, output_path) {
       !grepl("*G/OICU*", `ICU Name`, ignore.case = TRUE),
       !grepl("*Obstetric ICU*", `ICU Name`, ignore.case = TRUE),
       !grepl("*Maternal HDU*", `ICU Name`, ignore.case = TRUE),
-      !grepl("EU", `ICU Name`, ignore.case = TRUE),
-      !grepl("ED", `ICU Name`, ignore.case = TRUE),
+      !grepl("\\bEU\\b", `ICU Name`, ignore.case = TRUE),
+      !grepl("\\bED\\b", `ICU Name`, ignore.case = TRUE),
       # Adding this for source analysis - excluding test units.
       !grepl("Test Unit", `ICU Name`, ignore.case = TRUE)
     )
