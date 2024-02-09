@@ -13,7 +13,7 @@ column_types <- cols(
 )
 source_data <- read_csv("data/CoreForms.csv", col_types = column_types)
 sari_data <- read_csv("data/SariAdmissionAssessment.csv")
-daily <- read_csv("data/DailyAssessmentl.csv")
+daily <- read_csv("data/DailyAssessment.csv")
 daily <- daily %>%
   filter(DailyAssessment.date_of_daily_assessment == date_of_admission)
 sari_daily <- read_csv("data/SariDailyAssessment.csv")
@@ -52,7 +52,7 @@ source_data <- source_data %>%
   filter(coalesce(date_of_admission,
                   date_of_admission_hospital) >= start_date &
            coalesce(date_of_admission,
-                    date_of_admission_hospital) <= end_date) %>%
+                    date_of_admission_hospital) < end_date) %>%
   mutate(
     care_site_name = unitId,
     icu_los = as.integer(difftime(Discharge.date_of_discharge, date_of_admission,
