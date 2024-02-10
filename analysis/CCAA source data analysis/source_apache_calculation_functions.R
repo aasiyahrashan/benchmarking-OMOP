@@ -167,6 +167,7 @@ calculate_min_max_variables <- function(data){
                       grepl("flexion in response to pain", .x, ignore.case = T) ~ 3L,
                       grepl("withdraws from pain", .x, ignore.case = T) ~ 4L,
                       grepl("locailzes to pain", .x, ignore.case = T) ~ 5L,
+                      grepl("localizes to pain", .x, ignore.case = T) ~ 5L,
                       grepl("obeys commands", .x, ignore.case = T) ~ 6L
                     )),
            across(c("Admission.gcs_eye",
