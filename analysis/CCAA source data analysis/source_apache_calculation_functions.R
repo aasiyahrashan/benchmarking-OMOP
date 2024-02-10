@@ -336,10 +336,9 @@ unit_conversion_source <- function(admission, daily) {
         )),
         unit_wcc = "billion per liter",
         across(c(max_fio2, min_fio2), ~ case_when(
-          fi_o2_measure == "l/min" ~ (20 + 4 * .x) * 0.01,
-          fi_o2_measure %in% c("%", "/") & .x > 1, ~ .x*0.01,
-          fi_o2_measure %in% c("%", "/") & .x <= 1, ~ .x
-        )),
+          fi_o2_measure == "l/min" ~ (20 + 4 * .x)*0.01,
+          fi_o2_measure %in% c("%", "/") & .x > 1 ~ .x*0.01,
+          fi_o2_measure %in% c("%", "/") & .x <= 1 ~ .x)),
         unit_fio2 = "ratio",
         across(c(max_pao2, min_pao2), ~ case_when(
           pa_o2_measure == "mmHg" ~ .x,
