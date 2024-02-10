@@ -289,7 +289,7 @@ unit_conversion_source <- function(admission, daily) {
       c("mmHg", "KPa"), c("/", "%", "l/min"), c("%", "/", "L/L"),
       c("mmHg"), c("mmHg"), c("b/min"), c("/min"), c("NA"),
       c("mmol/L", "mEq/L"), c("mmol/L", "mEq/L"), c("mmol/L", "mEq/L"),
-      c("μmol/L", "mg/dl", "mmol/L", "mg/L"), c("g/dl", "g/L"),
+      c("μmol/L", "mg/dl", "mmol/L", "mg/L", "mg/l"), c("g/dl", "g/L"),
       c("mmol/L", "mg/dl", "μmol/L", "mg/dL", "g/L")
     )
 
@@ -319,8 +319,8 @@ unit_conversion_source <- function(admission, daily) {
     admission <- admission %>%
       mutate(
         across(c(max_temp, min_temp), ~ case_when(
-          temperature_measure == "°C" ~ .x,
-          temperature_measure == "°F" ~ (.x - 32) * 5 / 9
+          .x > 60 ~ (.x - 32) * 5 / 9,
+          .x <= 60 ~ .x
         )),
         unit_temp = "degree Celsius",
         across(c(max_wcc, min_wcc), ~ case_when(
@@ -334,9 +334,9 @@ unit_conversion_source <- function(admission, daily) {
         )),
         unit_wcc = "billion per liter",
         across(c(max_fio2, min_fio2), ~ case_when(
-          fi_o2_measure == "%" ~ .x * 0.01,
           fi_o2_measure == "l/min" ~ (20 + 4 * .x) * 0.01,
-          fi_o2_measure == "/" ~ .x
+          fi_o2_measure %in% c("%", "/") & .x > 1, ~ .x*0.01,
+          fi_o2_measure %in% c("%", "/") & .x <= 1, ~ .x
         )),
         unit_fio2 = "ratio",
         across(c(max_pao2, min_pao2), ~ case_when(
@@ -351,7 +351,7 @@ unit_conversion_source <- function(admission, daily) {
         unit_hematocrit = "percent",
         across(c(max_creatinine, min_creatinine), ~ case_when(
           serum_creatinine_measure == "mg/dl" ~ .x,
-          serum_creatinine_measure == "mg/L" ~ .x * 0.1,
+          serum_creatinine_measure %in% c("mg/L", "mg/l") ~ .x * 0.1,
           serum_creatinine_measure == "mmol/L" ~ .x * 11.312,
           serum_creatinine_measure == "μmol/L" ~ .x * 0.0113
         )),
