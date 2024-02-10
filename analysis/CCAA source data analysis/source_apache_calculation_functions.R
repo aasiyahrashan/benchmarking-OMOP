@@ -131,8 +131,6 @@ calculate_min_max_variables <- function(data){
                                  DailyAssessment.serum_creatinine,
                                  SariDailyAssessment.serum_creatinine,
                                  na.rm = TRUE),
-           min_map = min_dbp + 1 / 3 * (min_sbp - min_dbp),
-           max_map = max_dbp + 1 / 3 * (max_sbp - max_dbp),
            age = Admission.age)
   # GCS variables need to be translated to numbers
   data <- data %>%
