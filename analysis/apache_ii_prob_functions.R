@@ -36,6 +36,7 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
                                    ap2_path, ap2_coefs_path,
                                    implementation_asia_path,
                                    implementation_africa_path,
+                                   units_of_measure_path,
                                    output_path) {
   # Only downloading the data if it doesn't already exist.
   files_dont_exist <-
@@ -44,8 +45,9 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
       glue("{output_path}/data/snomed_ap4.csv"),
       glue("{output_path}/data/ap2.csv"),
       glue("{output_path}/data/ap2_coefs.csv"),
-      glue("{output_path}/data/all_implementation.csv")
-    )
+      glue("{output_path}/data/all_implementation.csv"),
+      glue("{output_path}/data/measures.csv")
+      )
 
   if (any(files_dont_exist)) {
     googlesheets4::gs4_auth(email = "*@nicslk.com")
@@ -53,8 +55,9 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
     # Downloading data and saving it to csv.
     print("Downloading mapping data")
 
-    read_excel(snomed_mapping_path, skip = 1, sheet = "Mapped") %>%
-      mutate(`Variable ID` = as.character(`Variable ID`)) %>%
+    # Everything in this mapping sheet should be text.
+    read_excel(snomed_mapping_path, skip = 1, sheet = "Mapped",
+               col_types = c("text")) %>%
       write_csv(file = glue("{output_path}/data/snomed_ap4.csv"))
 
     freetext_mapped <- read_sheet(freetext_mapping_path) %>%
@@ -101,6 +104,13 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
 
     rbind(asia, africa) %>%
       write_csv(file = glue("{output_path}/data/all_implementation.csv"))
+
+    read_sheet(units_of_measure_path, sheet = "ProposedFormat") %>%
+      janitor::clean_names() %>%
+      rename_with(~paste0(., "_measure"),
+                  !contains(c("registry", "hospital_name",
+                              "icu_name", "unit_id"))) %>%
+      write_csv(file = glue("{output_path}/data/measures.csv"))
   }
 }
 
@@ -115,7 +125,7 @@ download_mapping_files <- function(freetext_mapping_path, snomed_mapping_path,
 #' @param data admission dataset
 #' @import dplyr
 #' @noRd
-extract_snomed_and_apache_diagnosis <- function(data) {
+extract_primary_diagnosis <- function(data) {
   ### First making the snomed code missing if it's mapped to 0.
   data <- data %>%
     mutate(concept_code = if_else(concept_code == "No matching concept",
@@ -198,6 +208,37 @@ extract_snomed_and_apache_diagnosis <- function(data) {
   data
 }
 
+#' CCAA specific - for non OMOP dataset only
+#' Extracting the primary diagnosis from either apache iv diagnosis or snomed diagnosis
+#' This function will give 3 columns named primary_apache, extracted_snomed_diag and extracted_snomed_code
+#' For 'primary' diagnosis, if diagnosis was entered as apache iv, then primary_apache captures it
+#' Else extracted_snomed_diag and extracted_snomed_code were extracted from snomed operations and disorders
+#' @param admission_data admission dataset
+#' @import dplyr
+#' @noRd
+extract_primary_diagnosis_source <- function(admission_data){
+
+  admission_data <- admission_data %>%
+    mutate(extracted_apache_diag = if_else(!is.na(Admission.apache_diagnosis),
+                                           as.character(Admission.apache_diagnosis), as.character(NA)),
+           extracted_snomed_diag = case_when(
+             is.na(Admission.apache_diagnosis) &
+               !is.na(Admission.operation1) ~ Admission.operation1,
+             is.na(Admission.apache_diagnosis) &
+               is.na(Admission.operation1) &
+               !is.na(Admission.disorder1) ~ Admission.disorder1
+           ),
+           extracted_snomed_code = case_when(
+             is.na(Admission.apache_diagnosis) &
+               !is.na(Admission.operation1) ~ as.character(Admission.snomed_diagnosis_concept_id2),
+             is.na(Admission.apache_diagnosis) &
+               is.na(Admission.operation1) &
+               !is.na(Admission.disorder1) ~ as.character(Admission.snomed_diagnosis_concept_id1)
+           )
+    )
+
+  admission_data
+}
 
 #' CCAA specific
 #' Extracts the releveant snomed diagnosis and snomed code for the
@@ -208,7 +249,17 @@ extract_snomed_and_apache_diagnosis <- function(data) {
 #' and relevant snomed codes
 #' @import dplyr
 #' @noRd
-freetext_mapping_to_snomed <- function(admission_data, output_path) {
+freetext_mapping_to_snomed <- function(admission_data, output_path,
+                                       source = "OMOP") {
+
+  if(source == "OMOP"){
+    unique_vars <- c("person_id",
+                     "visit_occurrence_id",
+                     "visit_detail_id")
+  } else if (source == "source"){
+    unique_vars <- c("patient_id")
+  }
+
   freetext_mapped <- read_csv(glue("{output_path}/data/freetext_to_snomed.csv"))
 
   admission_data <- admission_data %>%
@@ -217,7 +268,7 @@ freetext_mapping_to_snomed <- function(admission_data, output_path) {
       extracted_snomed_diag
     )) %>%
     left_join(freetext_mapped, by = c("extracted_snomed_diag" = "sourceName")) %>%
-    distinct(person_id, visit_occurrence_id, visit_detail_id,
+    distinct(!!!syms(unique_vars),
       extracted_snomed_diag,
       .keep_all = TRUE
     ) %>%
@@ -252,10 +303,15 @@ freetext_mapping_to_snomed <- function(admission_data, output_path) {
 #' @importFrom glue glue
 #' @noRd
 snomed_to_apache_iv_mapping <- function(admission_data, output_path) {
+  # Specifying variable ID as a character.
+  column_types <- cols(
+    "Variable ID" = col_character(),
+    .default = col_guess()
+  )
   # Reading in the snomed to apache iv mapping sheets.
-  snomed_mapping <- read_csv(glue("{output_path}/data/snomed_ap4.csv")) %>%
+  snomed_mapping <- read_csv(glue("{output_path}/data/snomed_ap4.csv"),
+                             col_types = column_types) %>%
     mutate(
-      `Variable ID` = as.character(`Variable ID`),
       `Fully Specified Names (FSNs)` = clean_string_to_join(`Fully Specified Names (FSNs)`)
     ) %>%
     distinct(`Variable ID`, .keep_all = TRUE)
@@ -336,6 +392,7 @@ apache_ii_to_coefficient_mapping <- function(admission_data, output_path) {
 }
 
 #' Gets diangosis coefficents for APACHE II probabilty of death calculation.
+#' Works for both CCAA in original source format, and in OMOP format.
 #' @param diag_data Dataset after get_diagnoses.sql query.
 #' The download_mapping_data function should also have been run.
 #' @param output_path file path data is written to
@@ -343,28 +400,34 @@ apache_ii_to_coefficient_mapping <- function(admission_data, output_path) {
 #' @import stringr
 #' @importFrom glue glue
 #' @noRd
-get_apache_ii_coefficents <- function(diag_data, dataset_name, output_path) {
+get_apache_ii_coefficents <- function(diag_data, dataset_name,
+                                      source = "OMOP", output_path) {
   ### CCAA
   if (dataset_name == "CCAA") {
     # Extracting the primary diagnosis from APACHE IV
     # and snomed disorder and operation
-    diag_data <- extract_snomed_and_apache_diagnosis(diag_data)
+    if (source == "OMOP"){
+      diag_data <- extract_primary_diagnosis(diag_data)
+      unique_vars <- c("person_id", "visit_occurrence_id", "visit_detail_id")
+    }
+    else if (source == "source"){
+      diag_data <- extract_primary_diagnosis_source(diag_data)
+      unique_vars <- "patient_id"
+    }
 
     # Mapping the freetext diagnosis to SNOMED codes
-    diag_data <- freetext_mapping_to_snomed(diag_data, output_path)
-
+    diag_data <- freetext_mapping_to_snomed(diag_data, output_path,
+                                            source)
     # Mapping snomed to apache iv
     diag_data <- snomed_to_apache_iv_mapping(diag_data, output_path)
-
     # Mapping apache iv to apache ii
     diag_data <- apache_iv_to_apache_ii_mapping(diag_data, output_path)
-
     # Mapping apache ii to coefficients
     diag_data <- apache_ii_to_coefficient_mapping(diag_data, output_path)
 
     coef_data <- diag_data %>%
       select(
-        person_id, visit_occurrence_id, visit_detail_id,
+        !!unique_vars,
         primary_diagnosis_name,
         extracted_apache_diag,
         extracted_snomed_diag,

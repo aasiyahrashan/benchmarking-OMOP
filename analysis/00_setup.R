@@ -22,12 +22,15 @@ library(mice)
 library(SqlRender)
 # Required for the dbGetQuery function
 library(DBI)
+library(data.table)
 conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag", "dplyr")
-
+conflicted::conflicts_prefer(lubridate::year)
 # Benchmark date range defining -------------------------------------------
 start_date <- "2019-07-01"
-end_date <- "2022-12-31"
+# Realised this needs to be 2023-01-01 because the time is imputed as 00:00:00 in sql.
+# Otherwise, the query leaves out patients admitted on December 31st.
+end_date <- "2023-01-01"
 output_path <- "."
 
 # Creating output folders -------------------------------------------------
@@ -65,11 +68,18 @@ if (!file.exists(concepts_path)) {
   stop(glue("ERROR - fill in {dataset_name}_concepts.csv before rerunning"))
 }
 
-##### Sourcing function scripts and running analysis.
+## Sourcing function scripts and running analysis.
 source("analysis/connection_parameters.R")
 source("analysis/inclusion_criteria_functions.R")
 source("analysis/apache_ii_prob_functions.R")
 source("analysis/smr_graph_functions.R")
 
+## Analysis on OMOP data
 source("analysis/01_download_data_calculate_scores.R")
 source("analysis/02_calculate_smrs.R")
+
+## Analysis on source data (separate betwen CCAA and NICE)
+if(dataset_name == "CCAA"){
+  source("analysis/CCAA source data analysis/source_apache_calculation_functions.R")
+  source("analysis/CCAA source data analysis/01_source_analysis.R")
+}
