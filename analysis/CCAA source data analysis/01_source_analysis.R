@@ -11,11 +11,14 @@ column_types <- cols(
   "Admission.snomed_diagnosis_concept_id7" = col_character(),
   .default = col_guess()
 )
-source_data <- read_csv("data/CoreForms.csv", col_types = column_types)
-sari_data <- read_csv("data/SariAdmissionAssessment.csv")
+source_data <- read_csv("data/CoreForms.csv", col_types = column_types) %>%
+  distinct(patient_id, .keep_all = TRUE)
+sari_data <- read_csv("data/SariAdmissionAssessment.csv") %>%
+  distinct(patient_id, .keep_all = TRUE)
 daily <- read_csv("data/DailyAssessment.csv")
 daily <- daily %>%
-  filter(DailyAssessment.date_of_daily_assessment == date_of_admission)
+  filter(DailyAssessment.date_of_daily_assessment == date_of_admission) %>%
+  distinct(patient_id, .keep_all = TRUE)
 sari_daily <- read_csv("data/SariDailyAssessment.csv")
 sari_daily <- sari_daily %>%
   filter(SariDailyAssessment.date_of_sari_daily_assessment == date_of_admission) %>%
@@ -60,7 +63,8 @@ source_data <- source_data %>%
     hospital_outcome = if_else(Discharge.discharge_status_hos == "Dead" |
                                  Discharge.discharge_status == "Dead",
                                "Dead", "Alive", "Alive"),
-    admission_year = as.factor(year(date_of_admission))
+    admission_year = as.factor(year(coalesce(date_of_admission,
+                                             date_of_admission_hospital)))
   )
 
 # Removing patients from ineligible sites.
