@@ -21,7 +21,8 @@ conn <- omop_connect(
 # Getting physiology variables data set -----------------------------------
 data <- get_score_variables(
   conn, dialect, schema, start_date, end_date,
-  0, 1, concepts_path, "APACHE II"
+  0, 1, concepts_path, "APACHE II",
+  age_method = age_method
 )
 
 ##### Getting care site and death data and merging with main data set.
