@@ -95,6 +95,12 @@ if (dataset_name == "CCAA") {
               readmission == "No" |
               (readmission == "Yes" &
                  readmission_datetime != icu_admission_datetime))
+   # The same CCAA patient ID can be joined to more than one other for readmissions.
+   # Since this study keeps the first only, I'm removing the duplicates.
+   data <- data %>%
+     mutate(patient_id = str_extract(person_source_value, "^[^ ]+")) %>%
+     arrange(patient_id, icu_admission_datetime, icu_discharge_datetime) %>%
+     distinct(patient_id, .keep_all = TRUE)
 
    download_mapping_files(
      freetext_mapping_path,
