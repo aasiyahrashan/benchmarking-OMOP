@@ -32,13 +32,6 @@ start_date <- "2019-07-01"
 # Otherwise, the query leaves out patients admitted on December 31st.
 end_date <- "2023-01-01"
 output_path <- "."
-# Setting method of calculating age when getting data
-if(dataset_name == "CCAA"){
-  age_method = "year_only"
-}
-if(dataset_name == "NICE"){
-  age_method = "dob"
-}
 
 # Creating output folders -------------------------------------------------
 dir.create(glue("{getwd()}/output"))

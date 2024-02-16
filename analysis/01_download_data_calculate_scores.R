@@ -22,7 +22,7 @@ conn <- omop_connect(
 data <- get_score_variables(
   conn, dialect, schema, start_date, end_date,
   0, 1, concepts_path, "APACHE II",
-  age_method = age_method
+  age_method = "year_only"
 )
 
 ##### Getting care site and death data and merging with main data set.
