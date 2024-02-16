@@ -246,7 +246,11 @@ data <- data %>%
 
 # APACHE II score and prob ------------------------------------------------
 data <- fix_apache_ii_units(data)
+
+# Getting availability before removing implausible values
+availability_orig <- get_physiology_variable_availability(data)
 data <- fix_implausible_values_apache_ii(data)
+save(availability_orig, file = "data/03_original_physiology_availability.RData")
 
 #### FOR CCA ONLY. We don't collect paco2, so imputing it as 40 mmHg before we
 #### start the apache calculation. This allows the pao2 and fio2 to contribute
@@ -265,7 +269,7 @@ if (dataset_name == "CCAA") {
 data <- calculate_apache_ii_score(data)
 data <- calculate_apache_ii_prob(data)
 
-save(data, file = "data/03_cleaned_filtered_data.RData")
+save(data, file = "data/04_cleaned_filtered_data.RData")
 
 # Multiple imputation APACHE II score -------------------------------------
 # Using predictive mean matching to impute missing physiology values.
@@ -329,4 +333,4 @@ mice_long <- calculate_apache_ii_score(mice_long, imputation = "none")
 mice_long <- calculate_apache_ii_prob(mice_long, imputation = "none")
 mice_data <- as.mids(mice_long)
 
-save(mice_data, file = "data/04_mice_data.RData")
+save(mice_data, file = "data/05_mice_data.RData")
