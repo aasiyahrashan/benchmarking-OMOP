@@ -59,8 +59,8 @@ smr_graph <- function(by_split, expected_name, title = "",
   if(automatic_y_lim){
     smr <- smr +
       scale_y_continuous(
-        limits = c(0.25, 1.75),  # Set the y-axis limits
-        breaks = seq(0.25, 1.75, by = 0.5)  # Set the y-axis tick positions
+        limits = c(0.25, 3),  # Set the y-axis limits
+        breaks = seq(0.25, 3, by = 0.5)  # Set the y-axis tick positions
       )
   }
 
