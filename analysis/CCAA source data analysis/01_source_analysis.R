@@ -215,9 +215,9 @@ output <- get_n_percent_value(source_data, "admission_year", "hospital_outcome",
 )
 # writing the output data frame to an excel file
 wb <- loadWorkbook("output/01_output.xlsx")
-addWorksheet(wb, "3_source_data_tableone")
-writeData(wb, sheet = "3_source_data_tableone", x = output, borders = "columns")
-setColWidths(wb, "3_source_data_tableone", cols = 1:6, widths = "auto")
+addWorksheet(wb, "4_source_data_tableone")
+writeData(wb, sheet = "4_source_data_tableone", x = output, borders = "columns")
+setColWidths(wb, "4_source_data_tableone", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
 # Getting availability and range of the physiology components of the APACHE II score.
@@ -225,10 +225,10 @@ availability <- get_physiology_variable_availability(source_data)
 
 # Writing the output out.
 wb <- loadWorkbook("output/01_output.xlsx")
-addWorksheet(wb, "4_availability_apache_source")
-writeData(wb, sheet = "4_availability_apache_source", x = availability,
+addWorksheet(wb, "5_availability_apache_source")
+writeData(wb, sheet = "5_availability_apache_source", x = availability,
           borders = "columns")
-setColWidths(wb, "4_availability_apache_source", cols = 1:6, widths = "auto")
+setColWidths(wb, "5_availability_apache_source", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
 # Funnel plot of SMRs NI.

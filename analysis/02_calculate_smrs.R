@@ -1,5 +1,6 @@
-load("data/03_cleaned_filtered_data.RData")
-load("data/04_mice_data.RData")
+load("data/03_original_physiology_availability.RData")
+load("data/04_cleaned_filtered_data.RData")
+load("data/05_mice_data.RData")
 mice_long <- complete(mice_data, "long", include = TRUE)
 
 # SMRS normal imputation --------------------------------------------------
@@ -153,18 +154,28 @@ write.xlsx(output,
   na.string = "-"
 )
 
+
+# Availability ------------------------------------------------------------
+# Writing out original availability
+wb <- loadWorkbook("output/01_output.xlsx")
+addWorksheet(wb, "2_availability_orig")
+writeData(wb, sheet = "2_availability_orig", x = availability_orig, borders = "columns")
+setColWidths(wb, "2_availability_orig", cols = 1:6, widths = "auto")
+saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
+
 # Getting availability and range of the physiology components of the APACHE II score.
 availability <- get_physiology_variable_availability(data)
 
 # Writing the output out.
 wb <- loadWorkbook("output/01_output.xlsx")
-addWorksheet(wb, "2_availability_apache")
-writeData(wb, sheet = "2_availability_apache", x = availability, borders = "columns")
-setColWidths(wb, "2_availability_apache", cols = 1:6, widths = "auto")
+addWorksheet(wb, "3_availability_after_delete")
+writeData(wb, sheet = "3_availability_after_delete", x = availability, borders = "columns")
+setColWidths(wb, "3_availability_after_delete", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
-# Funnel plot of SMRs NI.
-# The NICE graph has size limits for publicatio
+
+# Funnel plots ------------------------------------------------------------
+# The NICE graph has size limits for publication
 if(dataset_name == "NICE"){
   smr_graph(smrs_ni, "expected_ap2", "",
             max = 10000, automatic_y_lim = TRUE)

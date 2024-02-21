@@ -34,7 +34,8 @@ smr_graph <- function(by_split, expected_name, title = "",
               color = custom_colours[1]) +
     scale_linetype_manual(
       values = c("dashed", "solid"),
-      labels = c("Mean SMR", "95% CI")
+      labels = c("Mean SMR", "95% CI"),
+      name = NULL
     ) +
     labs(y = "SMR", x = "Expected number of deaths") +
     scale_x_continuous(
@@ -51,16 +52,15 @@ smr_graph <- function(by_split, expected_name, title = "",
       plot.background = element_rect(fill='transparent', color=NA),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
-      legend.background = element_rect(fill='transparent'),
-      legend.box.background = element_rect(fill='transparent')
+      legend.background = element_rect(fill='transparent')
     )
 
   # Adding pre-defined limit if required for shared plots.
   if(automatic_y_lim){
     smr <- smr +
       scale_y_continuous(
-        limits = c(0.25, 1.75),  # Set the y-axis limits
-        breaks = seq(0.25, 1.75, by = 0.5)  # Set the y-axis tick positions
+        limits = c(0.25, 3),  # Set the y-axis limits
+        breaks = seq(0.25, 3, by = 0.5)  # Set the y-axis tick positions
       )
   }
 
