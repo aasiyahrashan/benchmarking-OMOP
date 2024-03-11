@@ -224,7 +224,7 @@ patients_per_month_country <-
   group_by(country, admission_year) %>%
   summarise(months_contributed_in_year = sum(contributed))
 
-# Excluding patients with insufficent contributions
+# Excluding patients with insufficient contributions
 data <- data %>%
   left_join(patients_per_month_country,
     by = c("country", "admission_year")
@@ -234,12 +234,10 @@ data <- data %>%
 
 # Applying patient specific exclusion critera
 data <- data %>%
-  filter(age >= 18) %>%
+  filter(age >= 17) %>%
   # Removing diagsnoses which can't have APACHE II calculated on them.
   filter(
-    !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE),
-    !grepl("*cesarean section*", primary_diagnosis_name, ignore.case = TRUE),
-    !grepl("*ectopic pregnancy*", primary_diagnosis_name, ignore.case = TRUE)
+    !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE)
   ) %>%
   # Excluding patients without APACHE II diagnoses
   filter(!is.na(ap2_diag_coef))
