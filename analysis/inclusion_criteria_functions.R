@@ -10,18 +10,7 @@
 #' @import glue
 #' @export
 apply_nice_specific_exclusions <- function(conn, data) {
-  # Selects patients with nice_apache_excluded flag (concept_id = 2000000014)
-  raw_sql <- glue("SELECT DISTINCT person_id
-                                   ,visit_occurrence_id
-                                   ,visit_detail_id
-                     FROM NICEOMOP.omop.observation
-                    WHERE observation_datetime >= '2019-01-01'
-                      AND observation_datetime <= '2023-01-01'
-                      AND observation_concept_id = 2000000014")
-
-  nice_apache_exclusion_dataset <- dbGetQuery(conn, raw_sql)
-
-  # Selects patients with hospital admissions, but
+    # Selects patients with hospital admissions, but
   # without ICU admissions (cutoff 2023)
   raw_sql <- glue("SELECT vo.person_id,
                           vo.visit_occurrence_id
@@ -33,10 +22,6 @@ apply_nice_specific_exclusions <- function(conn, data) {
 
   # Remove excluded icu admissions and missing icu admissions
   data <- data %>%
-    anti_join(nice_apache_exclusion_dataset,
-              by = c("person_id",
-                     "visit_occurrence_id",
-                     "visit_detail_id")) %>%
     anti_join(nice_missing_dataset,
               by = c("person_id",
                      "visit_occurrence_id")) %>%
