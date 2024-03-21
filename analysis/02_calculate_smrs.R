@@ -5,7 +5,7 @@ mice_long <- complete(mice_data, "long", include = TRUE)
 
 # SMRS normal imputation --------------------------------------------------
 smrs_ni <- data %>%
-  group_by(country, admission_year) %>%
+  group_by(country) %>%
   summarise(
     total = sum(!is.na(person_id)),
     # SMRs
@@ -187,24 +187,6 @@ smrs_ni <- data %>%
     n_dead = sum(icu_outcome == "Dead", na.rm = TRUE),
     percent_dead = 100 * sum(icu_outcome == "Dead", na.rm = TRUE) / total,
     smr_ap2 = n_dead / expected_ap2
-  ) %>%
-  ungroup()
-
-# SMRS multiple imputation
-# To report median and IQR of AP2 score,
-# getting score and mortality probability per patient.
-# Summarising using mean to get a point estimate. We won't report variability.
-mice_summary <- mice_long %>%
-  #### Don't want to include the original data set
-  filter(.imp != 0) %>%
-  group_by(
-    person_id, visit_occurrence_id, visit_detail_id, country
-  ) %>%
-  summarise(
-    apache_ii_score_no_imputation = mean(apache_ii_score_no_imputation),
-    apache_ii_prob_no_imputation = mean(apache_ii_prob_no_imputation,
-                                        na.rm = TRUE
-    )
   ) %>%
   ungroup()
 
