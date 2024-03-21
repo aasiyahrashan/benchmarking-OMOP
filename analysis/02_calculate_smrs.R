@@ -1,7 +1,8 @@
 load("data/03_original_physiology_availability.RData")
 load("data/04_cleaned_filtered_data.RData")
 load("data/05_mice_data.RData")
-mice_long <- complete(mice_data, "long", include = TRUE)
+mice_long <- complete(mice_data, "long", include = TRUE) %>%
+  mutate(country = as.factor(country))
 
 # SMRS normal imputation --------------------------------------------------
 smrs_ni <- data %>%
@@ -26,8 +27,7 @@ mice_summary <- mice_long %>%
   #### Don't want to include the original data set
   filter(.imp != 0) %>%
   group_by(
-    person_id, visit_occurrence_id, visit_detail_id, country,
-    admission_year
+    person_id, visit_occurrence_id, visit_detail_id, country
   ) %>%
   summarise(
     apache_ii_score_no_imputation = mean(apache_ii_score_no_imputation),
@@ -46,7 +46,7 @@ mice_summary <- mice_long %>%
 # Then as a sensitivity analysis, plotting upper and lower 95% CIs of the SMRs
 smrs_mi <- mice_long %>%
   filter(.imp != 0) %>%
-  group_by(.imp, country, admission_year) %>%
+  group_by(.imp, country) %>%
   summarise(
     total = sum(!is.na(person_id)),
     # Getting mean and variance of expected deaths to use for Rubin's rule pooling.
@@ -54,7 +54,7 @@ smrs_mi <- mice_long %>%
     var_mean_expected = var(apache_ii_prob_no_imputation) / total,
     n_dead = sum(icu_outcome == "Dead"),
   ) %>%
-  group_by(country, admission_year, n_dead) %>%
+  group_by(country, n_dead) %>%
   summarise(
     pooled_mean = mean(expected_ap2),
     within_imp_var = mean(var_mean_expected),
@@ -75,38 +75,38 @@ smrs_mi <- mice_long %>%
 # Create tables and graphs ------------------------------------------------
 
 ######### Creating table one.
-output <- make_output_df(data, "admission_year")
+output <- make_output_df(data, "country")
 output <- get_count(
-  data, "admission_year", "person_id",
+  data, "country", "person_id",
   "Number of patients", output
 )
 output <- get_unique_count(
-  data, "admission_year", "country",
+  data, "country", "country",
   "Number of countries", output
 )
-output <- get_median_iqr(data, "admission_year", "age",
+output <- get_median_iqr(data, "country", "age",
   "Age", output,
   round = 2
 )
-output <- get_n_percent_value(data, "admission_year", "gender", "MALE",
+output <- get_n_percent_value(data, "country", "gender", "MALE",
   "Male", output,
   round = 2
 )
 
 ############## Normal imputation
-output <- get_median_iqr(data, "admission_year",
+output <- get_median_iqr(data, "country",
   "apache_ii_score", "APACHE II score", output,
   round = 2
 )
-output <- get_median_iqr(data, "admission_year", "apache_ii_prob",
+output <- get_median_iqr(data, "country", "apache_ii_prob",
   "APACHE II probability of mortality", output,
   round = 2
 )
 
 #### SMR. Using the country dataset.
 #### Have to create the row separately and paste it to the output dataset.
-smr_ni_output <- make_output_df(smrs_ni, "admission_year")
-smr_ni_output <- get_median_iqr(smrs_ni, "admission_year",
+smr_ni_output <- make_output_df(smrs_ni, "country")
+smr_ni_output <- get_median_iqr(smrs_ni, "country",
   "smr_ap2", "APACHE II SMR Median (IQR)", smr_ni_output,
   round = 2
 )
@@ -114,19 +114,19 @@ names(smr_ni_output) <- names(output)
 output <- rbind(output, smr_ni_output[1, ])
 
 ### Scores multiple imputation
-output <- get_median_iqr(mice_summary, "admission_year",
+output <- get_median_iqr(mice_summary, "country",
   "apache_ii_score_no_imputation", "APACHE II score MI", output,
   round = 2
 )
-output <- get_median_iqr(mice_summary, "admission_year",
+output <- get_median_iqr(mice_summary, "country",
   "apache_ii_prob_no_imputation",
   "APACHE II probability of mortality MI", output,
   round = 2
 )
 
 #### SMR for APACHE II.
-smr_mi_output <- make_output_df(smrs_mi, "admission_year")
-smr_mi_output <- get_median_iqr(smrs_mi, "admission_year",
+smr_mi_output <- make_output_df(smrs_mi, "country")
+smr_mi_output <- get_median_iqr(smrs_mi, "country",
   "smr_ap2", "APACHE II SMR Median (IQR)", smr_mi_output,
   round = 2
 )
@@ -134,16 +134,16 @@ names(smr_mi_output) <- names(output)
 output <- rbind(output, smr_mi_output[1, ])
 
 ### Outcomes
-output <- get_n_percent_value(data, "admission_year", "icu_outcome",
+output <- get_n_percent_value(data, "country", "icu_outcome",
   "Dead", "ICU mortality",
   output,
   round = 2
 )
-output <- get_median_iqr(data, "admission_year", "icu_los",
+output <- get_median_iqr(data, "country", "icu_los",
   "ICU length of stay (Days)", output,
   round = 2
 )
-output <- get_n_percent_value(data, "admission_year", "hospital_outcome",
+output <- get_n_percent_value(data, "country", "hospital_outcome",
   "Dead", "Hospital mortality",
   output,
   round = 2
@@ -172,23 +172,6 @@ addWorksheet(wb, "3_availability_after_delete")
 writeData(wb, sheet = "3_availability_after_delete", x = availability, borders = "columns")
 setColWidths(wb, "3_availability_after_delete", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
-
-
-# Funnel plots ------------------------------------------------------------
-# Re-doing SMRs Imputation, removing admission_year from group_by operation
-# SMRS normal imputation
-smrs_ni <- data %>%
-  summarise(
-    total = sum(!is.na(person_id)),
-    # SMRs
-    median_ap2_score = median(apache_ii_score, na.rm = TRUE),
-    median_ap2_prob = median(apache_ii_prob * 100, na.rm = TRUE),
-    expected_ap2 = median(apache_ii_prob, na.rm = TRUE) * total,
-    n_dead = sum(icu_outcome == "Dead", na.rm = TRUE),
-    percent_dead = 100 * sum(icu_outcome == "Dead", na.rm = TRUE) / total,
-    smr_ap2 = n_dead / expected_ap2
-  ) %>%
-  ungroup()
 
 
 # The NICE graph has size limits for publication
