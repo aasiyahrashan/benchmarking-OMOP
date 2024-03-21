@@ -20,10 +20,10 @@ smrs_ni <- data %>%
 
 # SMRS multiple imputation --------------------------------------------------
 # To report median and IQR of AP2 score,
-# getting score and mortality probablity per patient.
+# getting score and mortality probability per patient.
 # Summarising using mean to get a point estimate. We won't report variability.
 mice_summary <- mice_long %>%
-  #### Don't want to include the original dataset
+  #### Don't want to include the original data set
   filter(.imp != 0) %>%
   group_by(
     person_id, visit_occurrence_id, visit_detail_id, country,
@@ -175,10 +175,44 @@ saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
 
 # Funnel plots ------------------------------------------------------------
+# Re-doing SMRs Imputation, removing admission_year from group_by operation
+# SMRS normal imputation
+smrs_ni <- data %>%
+  summarise(
+    total = sum(!is.na(person_id)),
+    # SMRs
+    median_ap2_score = median(apache_ii_score, na.rm = TRUE),
+    median_ap2_prob = median(apache_ii_prob * 100, na.rm = TRUE),
+    expected_ap2 = median(apache_ii_prob, na.rm = TRUE) * total,
+    n_dead = sum(icu_outcome == "Dead", na.rm = TRUE),
+    percent_dead = 100 * sum(icu_outcome == "Dead", na.rm = TRUE) / total,
+    smr_ap2 = n_dead / expected_ap2
+  ) %>%
+  ungroup()
+
+# SMRS multiple imputation
+# To report median and IQR of AP2 score,
+# getting score and mortality probability per patient.
+# Summarising using mean to get a point estimate. We won't report variability.
+mice_summary <- mice_long %>%
+  #### Don't want to include the original data set
+  filter(.imp != 0) %>%
+  group_by(
+    person_id, visit_occurrence_id, visit_detail_id, country
+  ) %>%
+  summarise(
+    apache_ii_score_no_imputation = mean(apache_ii_score_no_imputation),
+    apache_ii_prob_no_imputation = mean(apache_ii_prob_no_imputation,
+                                        na.rm = TRUE
+    )
+  ) %>%
+  ungroup()
+
+
 # The NICE graph has size limits for publication
 if(dataset_name == "NICE"){
   smr_graph(smrs_ni, "expected_ap2", "",
-            max = 10000, automatic_y_lim = TRUE)
+            max = 35000, automatic_y_lim = TRUE)
 } else if (dataset_name == "CCAA"){
   smr_graph(smrs_ni, "expected_ap2", "APACHE II normal imputation")
 }
@@ -192,7 +226,7 @@ if(dataset_name == "NICE"){
   smr_graph(smrs_mi, "pooled_mean", "APACHE II multiple imputation")
 } else if (dataset_name == "CCAA"){
   smr_graph(smrs_mi, "pooled_mean", "",
-            max = 10000, automatic_y_lim = TRUE)
+            max = 35000, automatic_y_lim = TRUE)
 }
 ggsave("output/03_funnel_plot_mi.png", width = 7, height =7,
        bg='transparent')
