@@ -185,12 +185,61 @@ data <- data %>%
   arrange(person_id, visit_occurrence_id, icu_admission_datetime) %>%
   distinct(person_id, visit_occurrence_id, .keep_all = TRUE)
 
+# Excluding patients from countries with insufficent contributions.
+# # This is based on the ICNARC report. https://www.google.com/url?q=https://onlinereports.icnarc.org/Reports/2019/12/annual-quality-report-201819-for-adult-critical-care&sa=D&source=docs&ust=1698589035706375&usg=AOvVaw3Zu-zA_qy5M02R9HGsMLZP
+# First calculating contributions over time.
+patients_per_month_country <-
+  data %>%
+  mutate(
+    country_fac = factor(country),
+    admission_month = factor(lubridate::month(icu_admission_datetime))
+  ) %>%
+  group_by(country_fac, country, admission_year, admission_month,
+    .drop = FALSE
+  ) %>%
+  summarize(n_admissions = n()) %>%
+  arrange(country, admission_year, admission_month) %>%
+  group_by(country) %>%
+  mutate(
+    percent_change_last_month =
+      ((n_admissions - lag(n_admissions)) / lag(n_admissions)) * 100,
+    percent_change_next_month =
+      ((n_admissions - lead(n_admissions)) / lead(n_admissions)) * 100
+  ) %>%
+  # Only allowing months with admissions which haven't
+  # decreased more than 60% compared to previous or next month to
+  # count as contributions.
+  mutate(
+    contributed =
+      case_when(
+        n_admissions < 5 ~ FALSE,
+        percent_change_last_month < -60 ~ FALSE,
+        percent_change_next_month < -60 ~ FALSE,
+        TRUE ~ TRUE
+      ),
+    date = as.Date(paste0(
+      as.character(admission_year), "-",
+      as.character(admission_month), "-", "01"
+    ))
+  ) %>%
+  group_by(country, admission_year) %>%
+  summarise(months_contributed_in_year = sum(contributed))
+
+# Excluding patients with insufficient contributions
+data <- data %>%
+  left_join(patients_per_month_country,
+    by = c("country", "admission_year")
+  ) %>%
+  filter(months_contributed_in_year >= 6 | (months_contributed_in_year >= 3 &
+    admission_year == 2019))
+
 # Applying patient specific exclusion critera
 data <- data %>%
-  filter(age >= 18) %>%
+  filter(age >= 17) %>%
   # Removing diagsnoses which can't have APACHE II calculated on them.
   filter(
-    !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE)) %>%
+    !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE)
+  ) %>%
   # Excluding patients without APACHE II diagnoses
   filter(!is.na(ap2_diag_coef))
 
