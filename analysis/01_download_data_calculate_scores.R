@@ -176,7 +176,8 @@ data <- data %>%
     "Dead",
     "Alive"
     ),
-    admission_year = as.factor(year(icu_admission_datetime))
+    admission_year = as.factor(year(icu_admission_datetime)),
+    country = as.factor(country)
   )
 
 # Getting first ICU admission per patient.

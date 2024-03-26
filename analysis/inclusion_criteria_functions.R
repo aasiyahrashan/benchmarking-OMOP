@@ -75,7 +75,9 @@ apply_ccaa_specific_exclusions <- function(data, output_path) {
       !grepl("\\bED\\b", `ICU Name`, ignore.case = TRUE),
       # Adding this for source analysis - excluding test units.
       !grepl("Test Unit", `ICU Name`, ignore.case = TRUE)
-    )
+    ) %>%
+    # Also excluding this specific unit from Ethiopia which had data collected for a very short time, and no info about untis, etc.
+    filter(`Unit ID` != "5f48b1a3393af5001be5c7aa")
 
   ## Joining to the main dataset so only patients admitted to allowed units
   # are included.

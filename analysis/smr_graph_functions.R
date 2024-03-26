@@ -43,7 +43,6 @@ smr_graph <- function(by_split, expected_name, title = "",
       breaks = seq(0, max, by = max/4)  # Set the x-axis tick positions
     ) +
     ggtitle(title) +
-    facet_wrap(~admission_year) +
     theme_classic() +
     theme(
       legend.justification = "center", legend.margin = margin(-5, 0, 0, 0),

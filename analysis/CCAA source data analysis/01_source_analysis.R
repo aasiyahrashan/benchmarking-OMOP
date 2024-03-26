@@ -65,7 +65,7 @@ source_data <- source_data %>%
                                "Dead", "Alive", "Alive"),
     admission_year = as.factor(year(coalesce(date_of_admission,
                                              date_of_admission_hospital)))
-  )
+    )
 
 # Removing patients from ineligible sites.
 source_data <- apply_ccaa_specific_exclusions(source_data, output_path)
@@ -76,61 +76,15 @@ source_data <- source_data %>%
   # Excluding patients who wouldn't be in OMOP.
   filter(Admission.gender %in% c("Male", "Female")) %>%
   # One patient date is missing here, even though it's in OMOP.
-  filter(!is.na(Discharge.date_of_discharge))
+  filter(!is.na(Discharge.date_of_discharge)) %>%
+  mutate(country = as.factor(country))
 
-# Excluding patients from countries with insufficent contributions.
-patients_per_month_country <-
-  source_data %>%
-  mutate(
-    country_fac = factor(country),
-    admission_month = factor(lubridate::month(date_of_admission))
-  ) %>%
-  group_by(country_fac, country, admission_year, admission_month,
-           .drop = FALSE
-  ) %>%
-  summarize(n_admissions = n()) %>%
-  arrange(country, admission_year, admission_month) %>%
-  group_by(country) %>%
-  mutate(
-    percent_change_last_month =
-      ((n_admissions - lag(n_admissions)) / lag(n_admissions)) * 100,
-    percent_change_next_month =
-      ((n_admissions - lead(n_admissions)) / lead(n_admissions)) * 100
-  ) %>%
-  # Only allowing months with admissions which haven't
-  # decreased more than 60% compared to previous or next month to
-  # count as contributions.
-  mutate(
-    contributed =
-      case_when(
-        n_admissions < 5 ~ FALSE,
-        percent_change_last_month < -60 ~ FALSE,
-        percent_change_next_month < -60 ~ FALSE,
-        TRUE ~ TRUE
-      ),
-    date = as.Date(paste0(
-      as.character(admission_year), "-",
-      as.character(admission_month), "-", "01"
-    ))
-  ) %>%
-  group_by(country, admission_year) %>%
-  summarise(months_contributed_in_year = sum(contributed))
 
-# Excluding patients with insufficent contributions
-source_data <- source_data %>%
-  left_join(patients_per_month_country,
-            by = c("country", "admission_year")
-  ) %>%
-  filter(months_contributed_in_year >= 6 | (months_contributed_in_year >= 3 &
-                                              admission_year == 2019))
 # Exclusions based on age and diagnosis
 source_data <- source_data %>%
   filter(Admission.age >= 18) %>%
   filter(
-    !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE),
-    !grepl("*cesarean section*", primary_diagnosis_name, ignore.case = TRUE),
-    !grepl("*ectopic pregnancy*", primary_diagnosis_name, ignore.case = TRUE)
-  ) %>%
+    !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE)) %>%
   # Excluding patients without APACHE II diagnoses
   filter(!is.na(ap2_diag_coef))
 
@@ -146,7 +100,7 @@ source_data <- calculate_apache_ii_prob(source_data)
 
 # Calculating SMRs --------------------------------------------------------
 smrs_ni <- source_data %>%
-  group_by(country, admission_year) %>%
+  group_by(country) %>%
   summarise(
     total = sum(!is.na(patient_id)),
     # SMRs
@@ -160,37 +114,37 @@ smrs_ni <- source_data %>%
   ungroup()
 
 # Output tables -----------------------------------------------------------
-output <- make_output_df(source_data, "admission_year")
+output <- make_output_df(source_data, "country")
 output <- get_count(
-  source_data, "admission_year", "patient_id",
+  source_data, "country", "patient_id",
   "Number of patients", output
 )
 output <- get_unique_count(
-  source_data, "admission_year", "country",
+  source_data, "country", "country",
   "Number of countries", output
 )
-output <- get_median_iqr(source_data, "admission_year", "Admission.age",
+output <- get_median_iqr(source_data, "country", "Admission.age",
                          "Age", output,
                          round = 2
 )
-output <- get_n_percent_value(source_data, "admission_year", "Admission.gender", "Male",
+output <- get_n_percent_value(source_data, "country", "Admission.gender", "Male",
                               "Male", output,
                               round = 2
 )
 
-output <- get_median_iqr(source_data, "admission_year",
+output <- get_median_iqr(source_data, "country",
                          "apache_ii_score", "APACHE II score", output,
                          round = 2
 )
-output <- get_median_iqr(source_data, "admission_year", "apache_ii_prob",
+output <- get_median_iqr(source_data, "country", "apache_ii_prob",
                          "APACHE II probability of mortality", output,
                          round = 2
 )
 
 #### SMR. Using the country dataset.
 #### Have to create the row separately and paste it to the output dataset.
-smr_ni_output <- make_output_df(smrs_ni, "admission_year")
-smr_ni_output <- get_median_iqr(smrs_ni, "admission_year",
+smr_ni_output <- make_output_df(smrs_ni, "country")
+smr_ni_output <- get_median_iqr(smrs_ni, "country",
                                 "smr_ap2", "APACHE II SMR Median (IQR)", smr_ni_output,
                                 round = 2
 )
@@ -198,17 +152,17 @@ names(smr_ni_output) <- names(output)
 output <- rbind(output, smr_ni_output[1, ])
 
 ### Outcomes
-output <- get_n_percent_value(source_data, "admission_year",
+output <- get_n_percent_value(source_data, "country",
                               "Discharge.discharge_status",
                               "Dead", "ICU mortality",
                               output,
                               round = 2
 )
-output <- get_median_iqr(source_data, "admission_year", "icu_los",
+output <- get_median_iqr(source_data, "country", "icu_los",
                          "ICU length of stay (Days)", output,
                          round = 2
 )
-output <- get_n_percent_value(source_data, "admission_year", "hospital_outcome",
+output <- get_n_percent_value(source_data, "country", "hospital_outcome",
                               "Dead", "Hospital mortality",
                               output,
                               round = 2
