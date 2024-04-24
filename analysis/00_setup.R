@@ -25,6 +25,7 @@ library(DBI)
 library(data.table)
 conflicted::conflict_prefer("filter", "dplyr")
 conflicted::conflict_prefer("lag", "dplyr")
+conflicted::conflict_prefer("between", "dplyr")
 conflicted::conflicts_prefer(lubridate::year)
 # Benchmark date range defining -------------------------------------------
 start_date <- "2019-07-01"
