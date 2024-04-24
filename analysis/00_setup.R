@@ -7,30 +7,27 @@
 #
 # Date of last edit: 2023-12-09
 # ------------------------------------------------------------------------------
-library(conflicted)
-library(tidyverse)
-library(lubridate)
-# Download from here. https://github.com/aasiyahrashan/SeverityScoresOMOP
+
+# Load and/or install packages --------------------------------------------
+# These first two are project specific, and need to be downloaded and installed
+# from their repo's. Links:
+# https://github.com/aasiyahrashan/SeverityScoresOMOP
+# https://github.com/aasiyahrashan/TableOneDataframe
 library(SeverityScoresOMOP)
-# Download from here. https://github.com/aasiyahrashan/TableOneDataframe
 library(TableOneDataframe)
-library(glue)
-library(readxl)
-library(googlesheets4)
-library(openxlsx)
-library(mice)
-library(SqlRender)
-# Required for the dbGetQuery function
-library(DBI)
-library(data.table)
-conflicted::conflict_prefer("filter", "dplyr")
-conflicted::conflict_prefer("lag", "dplyr")
-conflicted::conflict_prefer("between", "dplyr")
-conflicted::conflicts_prefer(lubridate::year)
+
+if(!("pacman" %in% installed.packages()[,"Package"])) install.packages("pacman")
+pacman::p_load(conflicted, tidyverse, lubridate, glue, readxl, googlesheets4,
+               openxlsx, mice, SqlRender, DBI, data.table)
+conflicted::conflict_prefer(dplyr::filter,
+                            dplyr::lag,
+                            dplyr::between,
+                            lubridate::year)
+
 # Benchmark date range defining -------------------------------------------
 start_date <- "2019-07-01"
-# Realised this needs to be 2023-01-01 because the time is imputed as 00:00:00 in sql.
-# Otherwise, the query leaves out patients admitted on December 31st.
+# Realised this needs to be 2023-01-01 because the time is imputed as 00:00:00
+# in sql. Otherwise, the query leaves out patients admitted on December 31st.
 end_date <- "2023-01-01"
 output_path <- "."
 
