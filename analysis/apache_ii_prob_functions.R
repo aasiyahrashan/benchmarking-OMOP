@@ -441,9 +441,11 @@ get_apache_ii_coefficents <- function(diag_data, dataset_name,
 
     coef_data <- diag_data %>%
       left_join(nice_coef,
-        by = c("diagnosis_concept_id"),
-        na_matches = "never"
-      ) %>%
+                by = c("diagnosis_concept_id"),
+                na_matches = "never"
+                ) %>%
+      filter(between(diagnosis_concept_id, 2000000074, 2000000127)
+             ) %>%
       select(
         person_id,
         visit_occurrence_id,

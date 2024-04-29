@@ -10,21 +10,36 @@
 #' @import glue
 #' @export
 apply_nice_specific_exclusions <- function(conn, data) {
-    # Selects patients with hospital admissions, but
-  # without ICU admissions (cutoff 2023)
-  raw_sql <- glue("SELECT vo.person_id,
-                          vo.visit_occurrence_id
+  # Select patients with hospital admissions, but without ICU admissions
+  raw_sql <- glue("SELECT DISTINCT vo.person_id
+                                   ,vo.visit_occurrence_id
                      FROM NICEOMOP.omop.visit_occurrence AS vo
           LEFT OUTER JOIN NICEOMOP.omop.visit_detail AS vd
                        ON vd.person_id = vo.person_id
                     WHERE vd.visit_detail_id IS NULL")
-  nice_missing_dataset <- dbGetQuery(conn, raw_sql)
+  nice_no_icu_admission_dataset <- dbGetQuery(conn, raw_sql)
 
-  # Remove excluded icu admissions and missing icu admissions
+  # Select ICU readmissions
+    # 2000000012 = Number of Readmission
+    # 2000000019 = Time until readmission on ICU in same hospital
+  raw_sql <- glue("SELECT DISTINCT person_id
+                                   ,visit_occurrence_id
+                                   ,visit_detail_id
+                     FROM NICEOMOP.omop.observation
+                    WHERE observation_concept_id
+                       IN (2000000012, 2000000019)")
+  nice_readmission_dataset <- dbGetQuery(conn, raw_sql)
+
+  # Remove patients with missing ICU admissions due to cutoff next year
   data <- data %>%
-    anti_join(nice_missing_dataset,
+    anti_join(nice_no_icu_admission_dataset,
               by = c("person_id",
                      "visit_occurrence_id")) %>%
+    anti_join(nice_readmission_dataset,
+              by = c("person_id",
+                     "visit_occurrence_id",
+                     "visit_detail_id")) %>%
+    # Add country letter a for future use later in the code
     mutate(country = letters[1])
 
   data
