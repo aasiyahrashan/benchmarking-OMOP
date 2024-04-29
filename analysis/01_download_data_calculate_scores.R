@@ -68,8 +68,6 @@ data <- get_score_variables(
  if (dataset_name == "NICE") {
    data <- apply_nice_specific_exclusions(conn, data)
    diag_data <- apply_nice_specific_exclusions(conn, diag_data)
-   diag_data <- diag_data %>%
-     filter(between(diagnosis_concept_id, 2000000074, 2000000127))
  }
 
  #### CCAA exclusions also need a separate SQL query
