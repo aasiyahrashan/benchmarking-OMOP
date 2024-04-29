@@ -82,7 +82,8 @@ source_data <- source_data %>%
 
 # Exclusions based on age and diagnosis
 source_data <- source_data %>%
-  filter(Admission.age >= 18) %>%
+  # 5 here, not sure why
+  filter(Admission.age >= 17) %>%
   filter(
     !grepl("*burn*", primary_diagnosis_name, ignore.case = TRUE)) %>%
   # Excluding patients without APACHE II diagnoses
