@@ -19,7 +19,7 @@ library(TableOneDataframe)
 if(!("pacman" %in% installed.packages()[,"Package"])) install.packages("pacman")
 pacman::p_load(conflicted, tidyverse, lubridate, glue, readxl, googlesheets4,
                openxlsx, mice, SqlRender, DBI, data.table)
-conflicted::conflict_prefer(dplyr::filter,
+conflicted::conflicts_prefer(dplyr::filter,
                             dplyr::lag,
                             dplyr::between,
                             lubridate::year)
