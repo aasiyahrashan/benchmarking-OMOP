@@ -203,62 +203,135 @@ output_2 <- get_n_percent_value(data, "country", "emergency_admission", 1,
                               "Emergency admission", output_2,
                               round = 1
 )
+
 output_2 <- get_median_iqr(data, "country", "max_bicarbonate",
                          "Bicarbonate", output_2,
                          round = 1
 )
+output_2 <- get_median_iqr(data, "country", "min_bicarbonate",
+                            "remove", output_2,
+                            round = 1
+)
 output_2 <- get_median_iqr(data, "country", "max_creatinine",
-                         "Creatinine", output_2,
-                         round = 1
+                           "Creatinine", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_creatinine",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_fio2",
-                         "FiO2", output_2,
-                         round = 1
+                           "FiO2", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_fio2",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_gcs",
+                           "GCS", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "min_gcs",
-                         "GCS", output_2,
-                         round = 1
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_hematocrit",
-                         "Hematocrit", output_2,
-                         round = 1
+                           "Hematocrit", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_hematocrit",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_hr",
-                         "Heart rate", output_2,
-                         round = 1
+                           "Heart rate", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_hr",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_map",
-                         "Mean arterial pressure", output_2,
-                         round = 1
+                           "Mean arterial pressure", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_map",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_pao2",
-                         "PaO2", output_2,
-                         round = 1
+                           "PaO2", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_pao2",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_ph",
-                         "pH", output_2,
-                         round = 1
+                           "pH", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_ph",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_potassium",
-                         "Potassium", output_2,
-                         round = 1
+                           "Potassium", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_potassium",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_rr",
-                         "Respiratory rate", output_2,
-                         round = 1
+                           "Respiratory rate", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_rr",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_sodium",
-                         "Sodium", output_2,
-                         round = 1
+                           "Sodium", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_sodium",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_temp",
-                         "Temperature", output_2,
-                         round = 1
+                           "Temperature", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_temp",
+                           "remove", output_2,
+                           round = 1
 )
 output_2 <- get_median_iqr(data, "country", "max_wcc",
-                         "White cell count", output_2,
-                         round = 1
+                           "White cell count", output_2,
+                           round = 1
 )
+output_2 <- get_median_iqr(data, "country", "min_wcc",
+                           "remove", output_2,
+                           round = 1
+)
+
+if(dataset_name != "CCAA"){
+output_2 <- output_2 %>%
+  mutate(Variable = str_remove(Variable, "remove Median \\(IQR\\)")) %>%
+  mutate(Extremity =
+           case_when(grepl("Median \\(IQR\\)", Variable)
+                     & !grepl("Age", Variable)
+                     ~ "Max.",
+                     Variable == "" ~ "Min.",
+                     .default = ""),
+         .after=Variable)
+} else {
+  output_2 <- output_2 %>%
+    filter(output_2, Variable != "remove Median (IQR)")
+}
+
 # Writing the output out.
 wb <- loadWorkbook("output/01_output.xlsx")
 addWorksheet(wb, "4_variable_distributions")
