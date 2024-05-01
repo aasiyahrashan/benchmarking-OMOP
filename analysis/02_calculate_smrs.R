@@ -84,10 +84,13 @@ output <- get_unique_count(
   data, "country", "country",
   "Number of countries", output
 )
-output <- get_unique_count(
-  data, "country", "care_site_id",
-  "Number of ICUs", output
-)
+# NICE does not include care site in OMOP, so number of ICUs in NICE has to come from NICE metadata.
+if (dataset_name == "CCAA") {
+  output <- get_unique_count(
+    data, "country", "care_site_id",
+    "Number of ICUs", output
+  )
+}
 output <- get_median_iqr(data, "country", "age",
   "Age", output,
   round = 2
