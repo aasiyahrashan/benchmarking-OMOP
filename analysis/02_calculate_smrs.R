@@ -84,6 +84,13 @@ output <- get_unique_count(
   data, "country", "country",
   "Number of countries", output
 )
+# NICE does not include care site in OMOP, so number of ICUs in NICE has to come from NICE metadata.
+if (dataset_name == "CCAA") {
+  output <- get_unique_count(
+    data, "country", "care_site_id",
+    "Number of ICUs", output
+  )
+}
 output <- get_median_iqr(data, "country", "age",
   "Age", output,
   round = 2
@@ -173,6 +180,159 @@ writeData(wb, sheet = "3_availability_after_delete", x = availability, borders =
 setColWidths(wb, "3_availability_after_delete", cols = 1:6, widths = "auto")
 saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
+# Variable distribution. - max and min are the same for CCAA, since most extreme value is collected.
+output_2 <- make_output_df(data, "country")
+
+output_2 <- get_median_iqr(data, "country", "age",
+                         "Age", output_2,
+                         round = 1
+)
+output_2 <- get_n_percent_value(data, "country", "gender", "MALE",
+                              "Male", output_2,
+                              round = 1
+)
+output_2 <- get_n_percent_value(data, "country", "comorbidity", 1,
+                              "Organ failure/immunocompromised", output_2,
+                              round = 1
+)
+output_2 <- get_n_percent_value(data, "country", "renal_failure", 1,
+                              "Renal failure", output_2,
+                              round = 1
+)
+output_2 <- get_n_percent_value(data, "country", "emergency_admission", 1,
+                              "Emergency admission", output_2,
+                              round = 1
+)
+
+output_2 <- get_median_iqr(data, "country", "max_bicarbonate",
+                         "Bicarbonate", output_2,
+                         round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_bicarbonate",
+                            "remove", output_2,
+                            round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_creatinine",
+                           "Creatinine", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_creatinine",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_fio2",
+                           "FiO2", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_fio2",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_gcs",
+                           "GCS", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_gcs",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_hematocrit",
+                           "Hematocrit", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_hematocrit",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_hr",
+                           "Heart rate", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_hr",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_map",
+                           "Mean arterial pressure", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_map",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_pao2",
+                           "PaO2", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_pao2",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_ph",
+                           "pH", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_ph",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_potassium",
+                           "Potassium", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_potassium",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_rr",
+                           "Respiratory rate", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_rr",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_sodium",
+                           "Sodium", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_sodium",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_temp",
+                           "Temperature", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_temp",
+                           "remove", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "max_wcc",
+                           "White cell count", output_2,
+                           round = 1
+)
+output_2 <- get_median_iqr(data, "country", "min_wcc",
+                           "remove", output_2,
+                           round = 1
+)
+
+output_2 <- output_2 %>%
+  mutate(Variable = str_remove(Variable, "remove Median \\(IQR\\)")) %>%
+  mutate(Extremity =
+           case_when(grepl("Median \\(IQR\\)", Variable)
+                     & !grepl("Age", Variable)
+                     ~ "Max.",
+                     Variable == "" ~ "Min.",
+                     .default = ""),
+         .after=Variable)
+
+# Writing the output out.
+wb <- loadWorkbook("output/01_output.xlsx")
+addWorksheet(wb, "4_variable_distributions")
+writeData(wb, sheet = "4_variable_distributions", x = output_2, borders = "columns")
+setColWidths(wb, "4_variable_distributions", cols = 1:6, widths = "auto")
+saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 
 # The NICE graph has size limits for publication
 if(dataset_name == "NICE"){
