@@ -317,7 +317,6 @@ output_2 <- get_median_iqr(data, "country", "min_wcc",
                            round = 1
 )
 
-if(dataset_name != "CCAA"){
 output_2 <- output_2 %>%
   mutate(Variable = str_remove(Variable, "remove Median \\(IQR\\)")) %>%
   mutate(Extremity =
@@ -327,10 +326,6 @@ output_2 <- output_2 %>%
                      Variable == "" ~ "Min.",
                      .default = ""),
          .after=Variable)
-} else {
-  output_2 <- output_2 %>%
-    filter(output_2, Variable != "remove Median (IQR)")
-}
 
 # Writing the output out.
 wb <- loadWorkbook("output/01_output.xlsx")
