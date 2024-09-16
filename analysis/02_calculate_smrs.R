@@ -337,12 +337,12 @@ saveWorkbook(wb, "output/01_output.xlsx", overwrite = TRUE)
 # The NICE graph has size limits for publication
 if(dataset_name == "NICE"){
   smr_graph(smrs_ni, "expected_ap2", "",
-            max = 60000, automatic_y_lim = TRUE)
+            max = 35000, automatic_y_lim = TRUE)
 } else if (dataset_name == "CCAA"){
   smr_graph(smrs_ni, "expected_ap2", "APACHE II normal imputation")
 }
 
-ggsave("output/02_funnel_plot_ni.eps", width = 10, height = 7,
+ggsave("output/02_funnel_plot_ni.eps", width = 7, height = 7,
        bg='transparent')
 
 # Funnel plot of SMRs MI.
@@ -351,9 +351,9 @@ if(dataset_name == "NICE"){
   smr_graph(smrs_mi, "pooled_mean", "APACHE II multiple imputation")
 } else if (dataset_name == "CCAA"){
   smr_graph(smrs_mi, "pooled_mean", "",
-            max = 60000, automatic_y_lim = TRUE)
+            max = 35000, automatic_y_lim = TRUE)
 }
-ggsave("output/03_funnel_plot_mi.eps", width = 10, height = 7,
+ggsave("output/03_funnel_plot_mi.eps", width = 7, height = 7,
        bg='transparent')
 
 # Sensitivity analysis funnel plot for upper and lower CIs.
