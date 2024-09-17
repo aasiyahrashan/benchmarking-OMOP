@@ -344,6 +344,8 @@ if(dataset_name == "NICE"){
 
 ggsave("output/02_funnel_plot_ni.eps", width = 7, height = 7,
        bg='transparent')
+ggsave("output/02_funnel_plot_ni.png", width = 7, height = 7,
+       bg='transparent')
 
 # Funnel plot of SMRs MI.
 # Here, the CCAA graph has size limits for publication
@@ -355,11 +357,17 @@ if(dataset_name == "NICE"){
 }
 ggsave("output/03_funnel_plot_mi.eps", width = 7, height = 7,
        bg='transparent')
+ggsave("output/03_funnel_plot_mi.png", width = 7, height = 7,
+       bg='transparent')
 
 # Sensitivity analysis funnel plot for upper and lower CIs.
 smr_graph(smrs_mi, "lower_ci_expected_deaths", "APACHE II multiple imputation lower 95% CI")
 ggsave("output/04_funnel_plot_mi_lower_ci.eps", width = 7, height =7,
        bg='transparent')
+ggsave("output/04_funnel_plot_mi_lower_ci.png", width = 7, height =7,
+       bg='transparent')
 smr_graph(smrs_mi, "upper_ci_expected_deaths", "APACHE II multiple imputation upper 95% CI")
 ggsave("output/05_funnel_plot_mi_upper_ci.eps", width = 7, height =7,
+       bg='transparent')
+ggsave("output/05_funnel_plot_mi_upper_ci.png", width = 7, height =7,
        bg='transparent')
